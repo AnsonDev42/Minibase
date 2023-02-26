@@ -16,17 +16,4 @@ public class IntegerConstant extends Constant {
         return value.toString();
     }
 
-    public boolean isEqual(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (!(obj instanceof IntegerConstant)) {
-            return false;
-        }
-        IntegerConstant v = (IntegerConstant) obj;
-        return this.value.equals(v.value);
-    }
 }

@@ -4,22 +4,16 @@ import ed.inf.adbs.minibase.base.*;
 import ed.inf.adbs.minibase.parser.QueryParser;
 
 import java.nio.file.Paths;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 
 /**
  * Minimization of conjunctive queries
  */
 public class CQMinimizer {
-    private static final HashMap<Variable, Term> homomorphism = new HashMap<>();// TODO: THIS one doesn't work for now, since static related issues
-
-    private static final List<Integer> removed_indeces = new ArrayList<>();
     private static final Set<String> restricted_var_set = new HashSet<>();
-
-    public static HashMap<Variable, Term> clearHomomorphism() {
-        homomorphism.clear();
-        return homomorphism;
-    }
-
 
     public static Boolean isSameTerm(Term Term1, Term Term2) {
         if (Term1 instanceof StringConstant && Term2 instanceof StringConstant) {
@@ -44,8 +38,6 @@ public class CQMinimizer {
         String inputFile = args[0];
         String outputFile = args[1];
         minimizeCQ(inputFile, outputFile);
-
-//        parsingExample(inputFile);
     }
 
     /**
@@ -56,40 +48,50 @@ public class CQMinimizer {
      */
     public static void minimizeCQ(String inputFile, String outputFile) {
         // TODO: add your implementation
+        Query query = null;
         try {
-//            Query query = QueryParser.parse(Paths.get(filename));
-            Query query = QueryParser.parse("Q(x) :- R(x, y), R(x, 4), R('ADBS', 4), R(u, 12), R(u, v), S('ADBS', 12, 7)");
-            // Query query = QueryParser.parse("Q(x) :- R(x, 'z'), S(4, z, w)");
+            query = QueryParser.parse(Paths.get(inputFile));
+//            Query query = QueryParser.parse("Q(x, z) :- R(4, z), S(x, y), T(12, 'x')");
 
             System.out.println("Entire query: " + query);
-            Head head = query.getHead();
-            List<Atom> body = query.getBody();
 
-
-            // create a set for the restricted variable names  ( constant not included)
-            List<Variable> restricted_var_list = head.getVariables();
-            for (Variable var : restricted_var_list) {
-                restricted_var_set.add(var.toString());
-            }
-
-            // create mappings
-//            List<HashMap> mappings = getMappings(body);
-            while (true) {
-                // TODO: fix this: for now it can only perform one round of removal, due to global homo and local
-                // homo issue, e.g. if find the first removal uses a-> b, it does not update all the a's in the body,
-                // and therefore second round of removal will not work
-                List<Atom> newBody = updateBody(body);
-                if (newBody.size() == body.size()) { // equavlent to check len of removed_indeces
-                    break;
-                } else {
-                    body = newBody;
-                }
-            }
-            System.out.println(body);
         } catch (Exception e) {
             System.err.println("Exception occurred during parsing");
             e.printStackTrace();
         }
+        Head head = query.getHead();
+        List<Atom> body = query.getBody();
+
+
+        // create a set for the restricted variable names  ( constant not included)
+        List<Variable> restricted_var_list = head.getVariables();
+        for (Variable var : restricted_var_list) {
+            restricted_var_set.add(var.toString());
+        }
+        List<Atom> newBody = null;
+        while (true) {
+            newBody = updateBody(body);
+            if (newBody.size() == body.size()) { // equivalent to check len of removed_indeces
+                break;
+            } else {
+                body = newBody; // update body and continue removing
+            }
+        }
+
+        query = new Query(head, newBody);
+        // save the query to the outputFile in string format
+        String output = query.toString();
+        System.out.println("Minimized query:" + output);
+        // create the folder if not exist
+
+        try {
+//             write and overwrite the file if it exists
+            Files.write(Paths.get(outputFile), output.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+            System.out.println("Write to file successfully");
+        } catch (IOException e) {
+            System.out.println("Write permission denied.");
+        }
+
 
     }
 
@@ -129,7 +131,9 @@ public class CQMinimizer {
                                 break;
                             }
                         } else {      // add the mapping to the homomorphism if necessary
-                            forward_tmp_homomorphism.put(terms1.get(k).toString(), terms2.get(k));
+                            if (!isSameTerm(terms1.get(k), terms2.get(k))) {
+                                forward_tmp_homomorphism.put(terms1.get(k).toString(), terms2.get(k));
+                            }
                         }
                     }
 
@@ -149,135 +153,88 @@ public class CQMinimizer {
     }
 
     private static List<Atom> checkRemovable(List<Atom> body, int removing_index, HashMap<String, Term> homomorphism) {
-
-        // update the body
         System.out.println("updating the body: " + body);
         System.out.println("updating based on the homomorphism: " + homomorphism + " and removing index: " + removing_index);
+        // remove the possible removable atom directly in newbody
         List<Atom> newBody = new ArrayList<Atom>(body);
         newBody.remove(removing_index);
 
+        // STEP1:  find all affected atoms (not the removed atom) by the homomorphism
         HashSet affectedAtoms = new HashSet();
         for (int i = 0; i < newBody.size(); i++) {
-//          update each term in the atom if in the current homomorphism
-            if (removing_index == i) { // impossible
-                continue;
-            }
             List<Term> terms = ((RelationalAtom) newBody.get(i)).getTerms();
             for (int j = 0; j < terms.size(); j++) {
                 if (terms.get(j) instanceof Variable && homomorphism.containsKey(terms.get(j).toString())) {
-                    System.out.println("updating the terms by: " + terms.get(j) + "-->" + homomorphism.get(terms.get(j).toString()));
-                    Term testTerm = new Variable(terms.get(j).toString());
-                    terms.set(j, homomorphism.get(terms.get(j).toString()));
+                    System.out.println("Due to homo" + terms.get(j) + "->" + homomorphism.get(terms.get(j).toString()) +
+                            ", atom " + terms + " is affected, need to check later");
                     affectedAtoms.add(i);
+                    break;
                 }
-//                System.out.println("NOT UPDATE the terms since the term " + terms.get(j));
+//                else {System.out.println("NOT UPDATE the terms since the term not affected by homo" + terms);}
             }
         }
+        System.out.println("affected atoms: " + affectedAtoms + " and new body: " + newBody);
         Iterator<Integer> it = affectedAtoms.iterator();
-        // check if affected atoms are removable and keep removing
+
+        // STEP2: check if ALL affected atom are removable(i.e. find the equivalent atom), if not, return the original body
         Boolean removable = true;
-        ArrayList removing_indices = new ArrayList(); // TODO: fix! inbewteen removal?
+        ArrayList removing_indices = new ArrayList();
         while (it.hasNext() && removable) {
             removable = false;
             int i = it.next();
-            String head1 = ((RelationalAtom) newBody.get(i)).getName();
-            List<Term> terms1 = ((RelationalAtom) newBody.get(i)).getTerms();
-            for (int j = 0; j < body.size(); j++) {
-                String head2 = ((RelationalAtom) body.get(j)).getName();
-                List<Term> terms2 = ((RelationalAtom) body.get(j)).getTerms();
+            String affectedAtomHead = ((RelationalAtom) newBody.get(i)).getName();
+            List<Term> affectedAtomTerms = new ArrayList<Term>(((RelationalAtom) newBody.get(i)).getTerms());
+            // update the affected atom terms based on the homomorphism
+            for (int k = 0; k < affectedAtomTerms.size(); k++) {
+                if (affectedAtomTerms.get(k) instanceof Variable && homomorphism.containsKey(affectedAtomTerms.get(k).toString())) {
+                    affectedAtomTerms.set(k, homomorphism.get(affectedAtomTerms.get(k).toString()));
+                }
+            }
 
-                if (affectedAtoms.contains(j) || removing_index == j || !head1.equals(head2) || terms1.size() != terms2.size()) {
+            // check if current affectedAtom is equals to atom_j
+            for (int j = 0; j < newBody.size(); j++) {
+                String head2 = ((RelationalAtom) newBody.get(j)).getName();
+                List<Term> terms2 = ((RelationalAtom) newBody.get(j)).getTerms();
+
+                // skip itself and different head/size atoms
+                if (affectedAtoms.contains(j) || !affectedAtomHead.equals(head2) || affectedAtomTerms.size() != terms2.size()) {
                     continue;
                 }
-
-                for (int k = 0; k < terms1.size(); k++) {
-                    // firstly check if term1 is (string) constant and if equivalent to term2
-                    //      since constants and restricted vars are non-replaceable
-                    if (terms1.get(k) instanceof Constant) {
-                        if (!terms1.get(k).toString().equals(terms2.get(k).toString())) {
+                // check each term in the affectedAtom
+                for (int k = 0; k < affectedAtomTerms.size(); k++) {
+                    if (affectedAtomTerms.get(k) instanceof Constant) {
+                        if (!affectedAtomTerms.get(k).toString().equals(terms2.get(k).toString())) {
                             break; // not removable
                         }
-                    }
-                    // secondly check term1 is equivalent to term2
-                    if (terms1.get(k) instanceof Variable) {
-                        if (!isSameTerm(terms1.get(k), terms2.get(k))) {
+                    } else if (affectedAtomTerms.get(k) instanceof Variable) {
+                        if (!isSameTerm(affectedAtomTerms.get(k), terms2.get(k))) {
                             break;
                         }
                     }
-
                     // matched all the terms, return the index of the atom
-                    if (k == (terms1.size() - 1)) {
+                    if (k == (affectedAtomTerms.size() - 1)) {
                         System.out.println("matched all the terms, can remove this affected atom");
+                        removing_indices.add(i);
                         removable = true;
                     }
                 }
             }
         }
+
         if (removable) {
-            for (int i = 0; i < removing_indices.size(); i++) {
-                if (i == 0) {
-                    newBody.remove(removing_indices.get(i));
-                } else {
-                    newBody.remove(removing_indices.get(i - 1));
+            List<Atom> removedBody = new ArrayList<Atom>();
+            for (int i = 0; i < newBody.size(); i++) {
+                if (!removing_indices.contains(i)) {
+                    removedBody.add(newBody.get(i));
                 }
             }
-            System.out.println("updated newBody: " + newBody);
-            return newBody;
+            System.out.println("updated newBody: " + removedBody);
+            return removedBody;
         } else {
+            System.out.println("FAILED to update newBody not equal: body" + body + " vs newBody" + newBody);
             return body;
         }
     }
-
-
-//    public static List<HashMap> getMappings(List<Atom> body) {
-//        // CREATE two mappings:
-//        // 1."relation_to_indices":  create an empty set for the replaceable variables, which maps variable names to a
-//        // list of indices that the variable appears in the body[index]
-//        // 2."var_to_indices" : create a set for mapping from relation names to a list of indices
-//        // that the relation appears in the body[index]
-//        HashMap<String, HashSet> relation_to_indices = new HashMap<>();
-//        HashMap<String, HashSet> var_to_indices = new HashMap<>();
-//
-//
-//        //  add replaceable variables to the allowed variables list
-//        int i = 0;
-//        for (Atom atom : body) {
-//            if (atom instanceof RelationalAtom) {
-//                RelationalAtom relationalAtom = (RelationalAtom) atom;
-//
-//                // add for the mapping from relation names to a list of indices
-//                String relation_name = relationalAtom.getName();
-//                if (!relation_to_indices.containsKey(relation_name)) {
-//                    // add relation to set with empty index list
-//                    relation_to_indices.put(relation_name, new HashSet<Integer>());
-//                }
-//                // add index to index list
-//                relation_to_indices.get(relation_name).add(i);
-//
-//                // add for the mapping from variable names to a list of indices
-//                List<Term> terms = relationalAtom.getTerms();
-//                for (Term term : terms) {
-//                    // if the term is a variable and not in the restricted variable set
-//                    if (term instanceof Variable && !restricted_var_set.contains(term.toString())) {
-//                        if (!var_to_indices.containsKey(term.toString())) {
-//                            // add var to set with empty index list
-//                            var_to_indices.put(term.toString(), new HashSet<Integer>());
-//                        }
-//                        // add index to index list
-//                        var_to_indices.get(term.toString()).add(i);
-//                    }
-//                }
-//                i++;
-//            }
-//        }
-//        System.out.println("var_to_indices: " + var_to_indices);
-//        System.out.println("relation_to_indices: " + relation_to_indices);
-//        // return a list of the two mappings
-//        List<HashMap> mappings = new ArrayList<>();
-//        mappings.add(relation_to_indices);
-//        mappings.add(var_to_indices);
-//        return mappings;
-//    }
 
 
     /**

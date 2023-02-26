@@ -15,18 +15,5 @@ public class StringConstant extends Constant {
     public String toString() {
         return "'" + value + "'";
     }
-
-    public boolean isEqual(Object obj) {
-        if (obj == null) {
-            return false;
-        }
-        if (obj == this) {
-            return true;
-        }
-        if (!(obj instanceof StringConstant)) {
-            return false;
-        }
-        StringConstant v = (StringConstant) obj;
-        return this.value.equals(v.value);
-    }
+    
 }
