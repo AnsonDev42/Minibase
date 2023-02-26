@@ -22,6 +22,11 @@ public class Query {
         return body;
     }
 
+//    remove a predicate from the body of a query
+    public void removePredicate(Atom atom) {
+    	body.remove(atom);
+    }
+
     @Override
     public String toString() {
         return head + " :- " + Utils.join(body, ", ");

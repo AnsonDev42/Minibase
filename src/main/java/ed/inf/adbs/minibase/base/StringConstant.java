@@ -1,7 +1,7 @@
 package ed.inf.adbs.minibase.base;
 
 public class StringConstant extends Constant {
-    private String value;
+    private final String value;
 
     public StringConstant(String value) {
         this.value = value;
@@ -14,5 +14,19 @@ public class StringConstant extends Constant {
     @Override
     public String toString() {
         return "'" + value + "'";
+    }
+
+    public boolean isEqual(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (obj == this) {
+            return true;
+        }
+        if (!(obj instanceof StringConstant)) {
+            return false;
+        }
+        StringConstant v = (StringConstant) obj;
+        return this.value.equals(v.value);
     }
 }
