@@ -18,8 +18,10 @@ public class CQMinimizer {
     /**
      * Check two terms are the same type and have same values
      * <p>
-     * Assume the body of the query from inputFile has no comparison atoms
-     * but could potentially have constants in its relational atoms.
+     *
+     * @param Term1: first term
+     * @param Term2: second term
+     * @return true if they are the same type and have same values
      */
     public static Boolean isSameTerm(Term Term1, Term Term2) {
         if (Term1 instanceof StringConstant && Term2 instanceof StringConstant) {
@@ -51,6 +53,7 @@ public class CQMinimizer {
      * <p>
      * Assume the body of the query from inputFile has no comparison atoms
      * but could potentially have constants in its relational atoms.
+     * <p>
      */
     public static void minimizeCQ(String inputFile, String outputFile) {
         Query query = null;
@@ -126,10 +129,8 @@ public class CQMinimizer {
             if (terms1.get(k) instanceof Variable && !restricted_var_set.contains(terms1.get(k).toString())) {
                 // check if existed in the current homomorphism
                 if (forward_tmp_homomorphism.containsKey(terms1.get(k).toString())) {
-                    System.out.println("EXISTED KEY FROM forward_tmp_homomorphism: " + forward_tmp_homomorphism);
                     // use the mapping for term1 and compare
                     if (!isSameTerm(forward_tmp_homomorphism.get(terms1.get(k).toString()), terms2.get(k))) {
-                        System.out.println("NOT EQUAL: " + forward_tmp_homomorphism.get(terms1.get(k).toString()) + " " + terms2.get(k));
                         break;
                     }
                 } else {      // add the mapping to the homomorphism if necessary
@@ -138,12 +139,10 @@ public class CQMinimizer {
                     }
                 }
             }
-
             // matched all the terms, return the index of the atom
             if (k == (terms1.size() - 1)) {
                 System.out.println("matched all the terms, return the index of the atom");
                 List<Atom> newBody = checkRemovable(body, i, forward_tmp_homomorphism);
-
                 if (newBody.size() != body.size()) {
                     return newBody;
                 }
@@ -216,9 +215,10 @@ public class CQMinimizer {
      * If not removable, return the original body
      * <p>
      *
-     * @params: body: the original body
-     * removing_index: the index of the atom to be removed
-     * homomorphism: the homomorphism from the atom to be removed to the atom to be kept
+     * @param body:           the original body
+     * @param removing_index: the index of the atom to be removed
+     * @param homomorphism:   the homomorphism from the atom to be removed to the atom to be kept
+     * @return the new body after removing the atom if removable, otherwise return the original body
      */
     private static List<Atom> checkRemovable(List<Atom> body, int removing_index, HashMap<String, Term> homomorphism) {
         List<Atom> newBody = new ArrayList<Atom>(body);
