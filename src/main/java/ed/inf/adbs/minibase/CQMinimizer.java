@@ -15,6 +15,12 @@ import java.util.*;
 public class CQMinimizer {
     private static final Set<String> restricted_var_set = new HashSet<>();
 
+    /**
+     * Check two terms are the same type and have same values
+     * <p>
+     * Assume the body of the query from inputFile has no comparison atoms
+     * but could potentially have constants in its relational atoms.
+     */
     public static Boolean isSameTerm(Term Term1, Term Term2) {
         if (Term1 instanceof StringConstant && Term2 instanceof StringConstant) {
             return ((StringConstant) Term1).getValue().equals(((StringConstant) Term2).getValue());
@@ -47,12 +53,9 @@ public class CQMinimizer {
      * but could potentially have constants in its relational atoms.
      */
     public static void minimizeCQ(String inputFile, String outputFile) {
-        // TODO: add your implementation
         Query query = null;
         try {
             query = QueryParser.parse(Paths.get(inputFile));
-//            Query query = QueryParser.parse("Q(x, z) :- R(4, z), S(x, y), T(12, 'x')");
-
             System.out.println("Entire query: " + query);
 
         } catch (Exception e) {
@@ -71,7 +74,7 @@ public class CQMinimizer {
         List<Atom> newBody = null;
         while (true) {
             newBody = updateBody(body);
-            if (newBody.size() == body.size()) { // equivalent to check len of removed_indeces
+            if (newBody.size() == body.size()) { // equivalent to check len of removed_indices
                 break;
             } else {
                 body = newBody; // update body and continue removing
@@ -95,6 +98,67 @@ public class CQMinimizer {
 
     }
 
+
+    /**
+     * remove term1 from the body if term1 is equivalent to term2 (using homomorphism)
+     * <p>
+     * make assumption that terms1 can be fully mapped to terms2 so terms1 can be removed.
+     * checkRemovable() is used to check if the mapping is possible. If so, return the updated body.
+     *
+     * @return the updated body of the query
+     * @param: body: the body of the query
+     * @param: i: the index of the term1 in the body, for easy access
+     * @param: terms1: the terms of the atom in the body
+     * @param: terms2: the terms of the atom in the body
+     */
+    private static List<Atom> removingTerm(List<Term> terms1, List<Term> terms2, List<Atom> body, int i) {
+
+        HashMap<String, Term> forward_tmp_homomorphism = new HashMap<String, Term>();
+        for (int k = 0; k < terms1.size(); k++) {
+            // firstly check if term1 is (string) constant and if equivalent to term2
+            //      since constants and restricted vars are non-replaceable
+            if (terms1.get(k) instanceof Constant || restricted_var_set.contains(terms1.get(k).toString())) {
+                if (!terms1.get(k).toString().equals(terms2.get(k).toString())) {
+                    break; // not removable
+                }
+            }
+            // secondly check term1 is equivalent to term2 (using homomorphism)
+            if (terms1.get(k) instanceof Variable && !restricted_var_set.contains(terms1.get(k).toString())) {
+                // check if existed in the current homomorphism
+                if (forward_tmp_homomorphism.containsKey(terms1.get(k).toString())) {
+                    System.out.println("EXISTED KEY FROM forward_tmp_homomorphism: " + forward_tmp_homomorphism);
+                    // use the mapping for term1 and compare
+                    if (!isSameTerm(forward_tmp_homomorphism.get(terms1.get(k).toString()), terms2.get(k))) {
+                        System.out.println("NOT EQUAL: " + forward_tmp_homomorphism.get(terms1.get(k).toString()) + " " + terms2.get(k));
+                        break;
+                    }
+                } else {      // add the mapping to the homomorphism if necessary
+                    if (!isSameTerm(terms1.get(k), terms2.get(k))) {
+                        forward_tmp_homomorphism.put(terms1.get(k).toString(), terms2.get(k));
+                    }
+                }
+            }
+
+            // matched all the terms, return the index of the atom
+            if (k == (terms1.size() - 1)) {
+                System.out.println("matched all the terms, return the index of the atom");
+                List<Atom> newBody = checkRemovable(body, i, forward_tmp_homomorphism);
+
+                if (newBody.size() != body.size()) {
+                    return newBody;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Update the body of the query by trying to remove redundant atoms(via homomorphism)
+     * <p>
+     *
+     * @param body the body of the query
+     * @return the updated body of the query
+     */
     private static List<Atom> updateBody(List<Atom> body) {
         if (body.size() <= 1) {
             return body;
@@ -110,56 +174,25 @@ public class CQMinimizer {
                 if (i == j || !head1.equals(head2) || terms1.size() != terms2.size()) {
                     continue;
                 }
-
-                HashMap<String, Term> forward_tmp_homomorphism = new HashMap<String, Term>();
-                for (int k = 0; k < terms1.size(); k++) {
-                    // firstly check if term1 is (string) constant and if equivalent to term2
-                    //      since constants and restricted vars are non-replaceable
-                    if (terms1.get(k) instanceof Constant || restricted_var_set.contains(terms1.get(k).toString())) {
-                        if (!terms1.get(k).toString().equals(terms2.get(k).toString())) {
-                            break; // not removable
-                        }
-                    }
-                    // secondly check term1 is equivalent to term2 (using homomorphism)
-                    if (terms1.get(k) instanceof Variable && !restricted_var_set.contains(terms1.get(k).toString())) {
-                        // check if existed in the current homomorphism
-                        if (forward_tmp_homomorphism.containsKey(terms1.get(k).toString())) {
-                            System.out.println("EXISTED KEY FROM forward_tmp_homomorphism: " + forward_tmp_homomorphism);
-                            // use the mapping for term1 and compare
-                            if (!isSameTerm(forward_tmp_homomorphism.get(terms1.get(k).toString()), terms2.get(k))) {
-                                System.out.println("NOT EQUAL: " + forward_tmp_homomorphism.get(terms1.get(k).toString()) + " " + terms2.get(k));
-                                break;
-                            }
-                        } else {      // add the mapping to the homomorphism if necessary
-                            if (!isSameTerm(terms1.get(k), terms2.get(k))) {
-                                forward_tmp_homomorphism.put(terms1.get(k).toString(), terms2.get(k));
-                            }
-                        }
-                    }
-
-                    // matched all the terms, return the index of the atom
-                    if (k == (terms1.size() - 1)) {
-                        System.out.println("matched all the terms, return the index of the atom");
-                        List<Atom> newBody = checkRemovable(body, i, forward_tmp_homomorphism);
-
-                        if (newBody.size() != body.size()) {
-                            return newBody;
-                        }
-                    }
+                // check if the atom i is removable ( equals to atom j) and return the updated body
+                List<Atom> newBody = removingTerm(terms1, terms2, body, i);
+                if (newBody != null) {
+                    return newBody;
                 }
             }
         }
         return body;
     }
 
-    private static List<Atom> checkRemovable(List<Atom> body, int removing_index, HashMap<String, Term> homomorphism) {
-        System.out.println("updating the body: " + body);
-        System.out.println("updating based on the homomorphism: " + homomorphism + " and removing index: " + removing_index);
-        // remove the possible removable atom directly in newbody
-        List<Atom> newBody = new ArrayList<Atom>(body);
-        newBody.remove(removing_index);
-
-        // STEP1:  find all affected atoms (not the removed atom) by the homomorphism
+    /**
+     * find all affected atoms (not the removed atom) by the homomorphism
+     * <p>
+     *
+     * @param newBody:     body with the mapped atom removed, but maybe exists other affected atoms
+     * @param homomorphism the h for the mapped atom, used to check if others affected by it
+     * @return the set of affected atoms index
+     */
+    private static HashSet<Integer> findAffectedAtoms(List<Atom> newBody, HashMap<String, Term> homomorphism) {
         HashSet affectedAtoms = new HashSet();
         for (int i = 0; i < newBody.size(); i++) {
             List<Term> terms = ((RelationalAtom) newBody.get(i)).getTerms();
@@ -170,15 +203,32 @@ public class CQMinimizer {
                     affectedAtoms.add(i);
                     break;
                 }
-//                else {System.out.println("NOT UPDATE the terms since the term not affected by homo" + terms);}
             }
         }
-        System.out.println("affected atoms: " + affectedAtoms + " and new body: " + newBody);
-        Iterator<Integer> it = affectedAtoms.iterator();
+        return affectedAtoms;
+    }
 
-        // STEP2: check if ALL affected atom are removable(i.e. find the equivalent atom), if not, return the original body
+
+    /**
+     * Check if the atom at removing_index is removable
+     * <p>
+     * If removable, return the new body after removing the atom
+     * If not removable, return the original body
+     * <p>
+     *
+     * @params: body: the original body
+     * removing_index: the index of the atom to be removed
+     * homomorphism: the homomorphism from the atom to be removed to the atom to be kept
+     */
+    private static List<Atom> checkRemovable(List<Atom> body, int removing_index, HashMap<String, Term> homomorphism) {
+        List<Atom> newBody = new ArrayList<Atom>(body);
+        newBody.remove(removing_index);
+        // STEP1:  find all affected atoms (except the removed atom) by the homomorphism
+        HashSet<Integer> affectedAtoms = findAffectedAtoms(newBody, homomorphism);
+        // STEP2: check if ALL affected atom are removable(i.e. find the equivalent atom from unaffected),
+        // if not, meaning the homomorphism is invalid, so return the original body
         Boolean removable = true;
-        ArrayList removing_indices = new ArrayList();
+        Iterator<Integer> it = affectedAtoms.iterator();
         while (it.hasNext() && removable) {
             removable = false;
             int i = it.next();
@@ -190,50 +240,35 @@ public class CQMinimizer {
                     affectedAtomTerms.set(k, homomorphism.get(affectedAtomTerms.get(k).toString()));
                 }
             }
-
-            // check if current affectedAtom is equals to atom_j
+//            // check if current affectedAtom is equals to atom_j
             for (int j = 0; j < newBody.size(); j++) {
                 String head2 = ((RelationalAtom) newBody.get(j)).getName();
                 List<Term> terms2 = ((RelationalAtom) newBody.get(j)).getTerms();
-
                 // skip itself and different head/size atoms
                 if (affectedAtoms.contains(j) || !affectedAtomHead.equals(head2) || affectedAtomTerms.size() != terms2.size()) {
                     continue;
                 }
                 // check each term in the affectedAtom
                 for (int k = 0; k < affectedAtomTerms.size(); k++) {
-                    if (affectedAtomTerms.get(k) instanceof Constant) {
-                        if (!affectedAtomTerms.get(k).toString().equals(terms2.get(k).toString())) {
-                            break; // not removable
-                        }
-                    } else if (affectedAtomTerms.get(k) instanceof Variable) {
-                        if (!isSameTerm(affectedAtomTerms.get(k), terms2.get(k))) {
-                            break;
-                        }
+                    if (!isSameTerm(affectedAtomTerms.get(k), terms2.get(k))) {
+                        break;
                     }
-                    // matched all the terms, return the index of the atom
                     if (k == (affectedAtomTerms.size() - 1)) {
-                        System.out.println("matched all the terms, can remove this affected atom");
-                        removing_indices.add(i);
                         removable = true;
                     }
                 }
             }
         }
-
         if (removable) {
             List<Atom> removedBody = new ArrayList<Atom>();
             for (int i = 0; i < newBody.size(); i++) {
-                if (!removing_indices.contains(i)) {
+                if (!affectedAtoms.contains(i)) {
                     removedBody.add(newBody.get(i));
                 }
             }
-            System.out.println("updated newBody: " + removedBody);
             return removedBody;
-        } else {
-            System.out.println("FAILED to update newBody not equal: body" + body + " vs newBody" + newBody);
-            return body;
         }
+        return body;
     }
 
 
