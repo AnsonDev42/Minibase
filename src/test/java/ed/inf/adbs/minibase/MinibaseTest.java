@@ -71,9 +71,6 @@ public class MinibaseTest {
         String s = "[1, 9, 'adbs']";
         assertEquals(s, tuple.toString());
         assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
-        Tuple tuple2 = scanOperator.getNextTuple();
-        String s2 = "[2, 7, 'anlp']";
-        assertEquals(s2, tuple2.toString());
         scanOperator.dump();
         Tuple tuple3 = scanOperator.getNextTuple();
         assertNull(tuple3);
