@@ -45,6 +45,7 @@ public class Catalog {
                 String fileName = dataFolder + relationName + ".csv";
                 relationToFileMap.put(relationName, fileName);
                 relationToSchemaMap.put(relationName, attributeTypes);
+//
             }
         } catch (IOException e) {
             e.printStackTrace();
@@ -90,4 +91,5 @@ public class Catalog {
         }
         return relationToSchemaMap.get(relationName);
     }
+
 }
