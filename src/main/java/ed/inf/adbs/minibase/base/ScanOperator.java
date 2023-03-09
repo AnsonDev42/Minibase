@@ -79,8 +79,17 @@ public class ScanOperator {
     /**
      * Reset the current location to the beginning of the file
      */
-    public void reset() {
+    public void reset() throws IOException {
         currentLocation = 0;
+//        reset the reader to the first line
+        try {
+            ScanOperator.reader.close();
+        } catch (IOException e) {
+            System.out.println("Error closing file");
+        }
+        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
+        ScanOperator.reader = new BufferedReader(new FileReader(filepath));
+
     }
 
     /**

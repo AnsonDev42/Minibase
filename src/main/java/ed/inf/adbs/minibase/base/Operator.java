@@ -1,5 +1,7 @@
 package ed.inf.adbs.minibase.base;
 
+import java.io.IOException;
+
 public class Operator {
 
 
@@ -7,7 +9,7 @@ public class Operator {
         return null;
     }
 
-    public void reset() {
+    public void reset() throws IOException {
     }
 
 
