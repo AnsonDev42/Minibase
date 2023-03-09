@@ -1,6 +1,7 @@
 package ed.inf.adbs.minibase;
 
 import ed.inf.adbs.minibase.base.Atom;
+import ed.inf.adbs.minibase.base.ComparisonAtom;
 import ed.inf.adbs.minibase.base.Query;
 import ed.inf.adbs.minibase.base.Head;
 import ed.inf.adbs.minibase.parser.QueryParser;
@@ -10,7 +11,6 @@ import java.util.List;
 
 /**
  * In-memory database system
- *
  */
 public class Minibase {
 
@@ -42,8 +42,8 @@ public class Minibase {
 
     public static void parsingExample(String filename) {
         try {
-            Query query = QueryParser.parse(Paths.get(filename));
-            // Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
+//            Query query = QueryParser.parse(Paths.get(filename));
+            Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
             // Query query = QueryParser.parse("Q(SUM(x * 2 * x)) :- R(x, 'z'), S(4, z, w), 4 < 'test string' ");
 
             System.out.println("Entire query: " + query);
@@ -51,12 +51,39 @@ public class Minibase {
             System.out.println("Head: " + head);
             List<Atom> body = query.getBody();
             System.out.println("Body: " + body);
-        }
-        catch (Exception e)
-        {
+            int index = findComparisonAtoms(body);
+            if (index != -1) {
+                System.out.println("Comparison atom found at index " + index);
+            } else {
+                System.out.println("No comparison atoms found");
+            }
+//          for now always handle the first comparison atom
+            if (index != -1) {
+                ComparisonAtom comparisonAtom = (ComparisonAtom) body.get(index);
+                System.out.println("Comparison atom: " + comparisonAtom);
+            }
+
+        } catch (Exception e) {
             System.err.println("Exception occurred during parsing");
             e.printStackTrace();
         }
     }
 
+    /**
+     * Find first index of ComparisonAtom in the body of the query (if it exists)
+     * given that the comparison atoms are always after the relational atoms.
+     *
+     * @param body
+     * @return the index of the first comparison atom if it exists, -1 otherwise
+     */
+    public static int findComparisonAtoms(List<Atom> body) {
+        int i = 0;
+        for (Atom atom : body) {
+            if (atom instanceof ComparisonAtom) {
+                return i;
+            }
+            i++;
+        }
+        return -1;
+    }
 }

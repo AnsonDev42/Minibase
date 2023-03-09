@@ -12,3 +12,5 @@ src/main/java/ed/inf/adbs/minibase/.DS_Store
 target/
 
 data/minimization/output/
+
+data/evaluation/test_db/

@@ -53,22 +53,27 @@ public class ScanOperator {
      * @return Tuple from the current line if available ; otherwise return null.
      * @throws IOException
      */
-    public Tuple getNextTuple() throws IOException {
-        String line = ScanOperator.reader.readLine();
-        if (line != null) {
+    public Tuple getNextTuple() {
+        try {
+            String line = ScanOperator.reader.readLine();
+            if (line != null) {
 //            split the line by comma and remove white space
-            String[] data = line.split(",");
-
-            Object[] fields = new Object[data.length];
-            for (int i = 0; i < data.length; i++) {
-                fields[i] = convertToTerm(data[i], fieldType[i]);  // fieldType[i] is the type of the ith field
+                String[] data = line.split(",");
+                Object[] fields = new Object[data.length];
+                for (int i = 0; i < data.length; i++) {
+                    fields[i] = convertToTerm(data[i], fieldType[i]);  // fieldType[i] is the type of the ith field
+                }
+                Tuple currentTuple = new Tuple(fields);
+                return currentTuple;
+            } else {
+                reader.close();
+                return null;
             }
-            Tuple currentTuple = new Tuple(fields);
-            return currentTuple;
-        } else {
-            reader.close();
+        } catch (IOException e) {
+            System.out.println("Error reading file");
             return null;
         }
+
     }
 
     /**

@@ -1,13 +1,16 @@
 package ed.inf.adbs.minibase;
 
 import ed.inf.adbs.minibase.base.*;
+import ed.inf.adbs.minibase.parser.QueryParser;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.List;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
+import static ed.inf.adbs.minibase.Minibase.findComparisonAtoms;
 import static org.junit.Assert.*;
 
 /**
@@ -74,6 +77,30 @@ public class MinibaseTest {
         scanOperator.dump();
         Tuple tuple3 = scanOperator.getNextTuple();
         assertNull(tuple3);
+    }
+
+    @Test
+    public void testFindComparisionAtomIdx() {
+        Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
+        // Query query = QueryParser.parse("Q(SUM(x * 2 * x)) :- R(x, 'z'), S(4, z, w), 4 < 'test string' ");
+        List<Atom> body = query.getBody();
+        assertEquals(2, findComparisonAtoms(body));
+
+        Query query1 = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w)");
+        List<Atom> body1 = query1.getBody();
+        assertEquals(-1, findComparisonAtoms(body1));
+
+    }
+
+    @Test
+    public void testPassCondition(){
+        Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
+        List<Atom> body = query.getBody();
+        int idx = findComparisonAtoms(body);
+        Atom atom = body.get(idx);
+        Tuple tuple = new Tuple(1, 2, 3);
+
+
     }
 }
 
