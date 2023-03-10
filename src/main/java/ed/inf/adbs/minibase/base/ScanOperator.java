@@ -6,7 +6,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class ScanOperator {
+public class ScanOperator extends Operator {
     private static String relationName;
     private static BufferedReader reader;
     private static int currentLocation;
@@ -65,7 +65,7 @@ public class ScanOperator {
                 Tuple currentTuple = new Tuple(fields);
                 return currentTuple;
             } else {
-                reader.close();
+                ScanOperator.reader.close();
                 return null;
             }
         } catch (IOException e) {
@@ -94,9 +94,8 @@ public class ScanOperator {
     /**
      * Dump the tuples in the relation to the console
      *
-     * @throws IOException
      */
-    public void dump() throws IOException {
+    public void dump() {
         Tuple tuple = getNextTuple();
         while (tuple != null) {
             System.out.println(tuple);
