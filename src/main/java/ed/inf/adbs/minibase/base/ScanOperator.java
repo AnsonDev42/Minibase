@@ -1,6 +1,5 @@
 package ed.inf.adbs.minibase.base;
 
-import javax.management.relation.Relation;
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -32,7 +31,7 @@ public class ScanOperator {
      *
      * @param field     the string field to be converted, e.g. "1" or "abc"
      * @param fieldType The type of the field indicated by the schema
-     * @return
+     * @return a term object converted from string
      */
     public static Term convertToTerm(String field, String fieldType) {
         if (fieldType.equals("int")) {

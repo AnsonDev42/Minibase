@@ -32,6 +32,15 @@ public enum ComparisonOperator {
         if (left instanceof Variable || right instanceof Variable) {
             throw new IllegalArgumentException("Cannot compare a variable, only constants");
         }
+        if (left == null || right == null) {
+//            throw new IllegalArgumentException("Cannot compare a null value");
+            return false;
+        }
+//        check if left and right are the same type of constant
+        if (left.getClass() != right.getClass()) {
+            throw new IllegalArgumentException("Cannot compare two different types of constants");
+        }
+
         if (left instanceof StringConstant && right instanceof StringConstant) {
             String left_str = left.toString();
             String right_str = right.toString();
