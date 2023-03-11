@@ -1,18 +1,19 @@
 package ed.inf.adbs.minibase;
 
-import com.sun.org.apache.xalan.internal.xsltc.compiler.util.CompareGenerator;
 import ed.inf.adbs.minibase.base.*;
 import ed.inf.adbs.minibase.parser.QueryParser;
 import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
-import static ed.inf.adbs.minibase.Minibase.findComparisonAtoms;
+import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertThrows;
 
 /**
  * Unit test for Minibase.
@@ -24,6 +25,24 @@ public class MinibaseTest {
      * Rigorous Test :-)
      */
 
+    @Test
+    public void testTerm() {
+        IntegerConstant term = new IntegerConstant(4);
+        HashMap<Term, Integer> map = new HashMap<Term, Integer>();
+        map.put(term, 1);
+        IntegerConstant term2 = new IntegerConstant(4);
+        assertEquals(term.hashCode(), term2.hashCode());
+        assertEquals(map.get(term2), new Integer(1));
+
+        StringConstant term3 = new StringConstant("adbs");
+        Variable term4 = new Variable("adbs");
+        assertNotEquals(term3.hashCode(), term4.hashCode());
+        map.put(term3, 33);
+        map.put(term4, 44);
+        assertEquals(map.get(term3), new Integer(33));
+        assertEquals(map.get(term4), new Integer(44));
+
+    }
 
     @Test
     public void cataglogTest() {
@@ -81,7 +100,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testFindComparisionAtomIdx() {
+    public void testFindComparisonAtomIdx() {
         Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
         // Query query = QueryParser.parse("Q(SUM(x * 2 * x)) :- R(x, 'z'), S(4, z, w), 4 < 'test string' ");
         List<Atom> body = query.getBody();
@@ -127,7 +146,6 @@ public class MinibaseTest {
     @Test
     public void testPassCondition() throws FileNotFoundException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
         Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), 1>2");
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
@@ -148,7 +166,6 @@ public class MinibaseTest {
     @Test
     public void testSelectOperatorSimple() throws FileNotFoundException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3");
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
@@ -164,7 +181,6 @@ public class MinibaseTest {
     @Test
     public void testSelectOperator2conditions() throws FileNotFoundException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3,x=8");
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
@@ -177,7 +193,6 @@ public class MinibaseTest {
     @Test
     public void testSelectOperatorNoMatch() throws FileNotFoundException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 100");
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
@@ -190,7 +205,6 @@ public class MinibaseTest {
     @Test
     public void testSelectOperatorImpossibleVar() throws FileNotFoundException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), c > 3");
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
@@ -200,5 +214,39 @@ public class MinibaseTest {
 //        assertNull(selectOperator.getNextTuple()); // should be null
         assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
     }
+
+    @Test
+    public void testSelectOperatorHiddenCondition() throws FileNotFoundException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y) :- S(x, y,4)");
+        List<Atom> body = query.getBody();
+        int index = findComparisonAtoms(body);
+        // get the terms starting from the index
+        List condition = body.subList(index, body.size());
+        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
+        assertNull(selectOperator.getNextTuple());
+    }
+
+    @Test
+    public void testQueryPlanner() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, z, y) :- R(x, z, y), z < 8");
+        HashMap<String, Operator> plan = QueryPlanner.buildQueryPlan(query);
+        assertTrue(plan.get("select") instanceof SelectOperator);
+        assertTrue(plan.get("scan") instanceof ScanOperator);
+        assertNotNull(plan.get("select"));
+        assertNotNull(plan.get("scan"));
+        assertNotNull(plan.get("project"));
+
+        assertEquals("[2, 7, 'anlp']", plan.get("select").getNextTuple().toString());
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x, z, y)")).get("scan")
+                instanceof ScanOperator);
+//        check when the query contains table info that does not match to the catalog schema
+        assertThrows(Exception.class, () -> {
+            QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x) "));
+        });
+    }
+
+
 }
 

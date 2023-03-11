@@ -9,6 +9,8 @@ import ed.inf.adbs.minibase.parser.QueryParser;
 import java.nio.file.Paths;
 import java.util.List;
 
+import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;
+
 /**
  * In-memory database system
  */
@@ -69,21 +71,5 @@ public class Minibase {
         }
     }
 
-    /**
-     * Find first index of ComparisonAtom in the body of the query (if it exists)
-     * given that the comparison atoms are always after the relational atoms.
-     *
-     * @param body
-     * @return the index of the first comparison atom if it exists, -1 otherwise
-     */
-    public static int findComparisonAtoms(List<Atom> body) {
-        int i = 0;
-        for (Atom atom : body) {
-            if (atom instanceof ComparisonAtom) {
-                return i;
-            }
-            i++;
-        }
-        return -1;
-    }
+
 }

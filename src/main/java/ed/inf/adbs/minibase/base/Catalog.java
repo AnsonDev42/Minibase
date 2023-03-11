@@ -72,6 +72,7 @@ public class Catalog {
     public static Catalog getInstance(String rootFolder) {
         if (instance == null) {
             instance = new Catalog(rootFolder);
+            instance.initialize();
         }
         return instance;
     }

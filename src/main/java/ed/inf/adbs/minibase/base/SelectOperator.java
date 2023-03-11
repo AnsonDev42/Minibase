@@ -17,8 +17,7 @@ public class SelectOperator extends Operator {
         this.relationalAtom = relationalAtom;
         childScanOperator = new ScanOperator(relationalAtom.getName());
         this.condition = condition;
-        termToIndexMap = createTermToIndexMap(relationalAtom);
-
+        this.termToIndexMap = createTermToIndexMap(relationalAtom);
     }
 
     @Override
@@ -51,21 +50,48 @@ public class SelectOperator extends Operator {
                 return false;
             }
         }
+
         return true;
     }
 
+    public List<ComparisonAtom> addHiddenCondition() {
+        List<ComparisonAtom> condition = this.condition;
+        for (Term term : relationalAtom.getTerms()) {
+            if (term instanceof Constant) {
+                condition.add(new ComparisonAtom(term, new Variable("hidden"), ComparisonOperator.EQ));
+            }
+        }
+        return condition;
+    }
+
+
     /**
-     * Create variable to index map e.g. R(x,y,z) -> x:0, y:1, z:2,
+     * Create variable to index map e.g. R(x,y,z) -> x:0, y:1, z:2, or R(x,y,4) -> x:0, y:1, (IntCons)4:0
      * So that we can get the index of a variable in a tuple
      *
      * @param relationalAtom the relational atom this operator
      * @return a map from variable name to index
      */
-
     public static HashMap createTermToIndexMap(RelationalAtom relationalAtom) {
-        HashMap<String, Integer> map = new HashMap<>();
+//        System.out.println("Relation :" + relationalAtom.getName() + Catalog.getInstance(null).getSchema(relationalAtom.getName()).length);
+        if (relationalAtom.getTerms().size() != Catalog.getInstance(null).getSchema(relationalAtom.getName()).length) {
+            throw new IllegalArgumentException("The number of terms in the relational atom does not match the schema");
+        }
+        HashMap<Term, Integer> map = new HashMap<>();
         for (int i = 0; i < relationalAtom.getTerms().size(); i++) {
-            map.put(relationalAtom.getTerms().get(i).toString(), i);
+            map.put(relationalAtom.getTerms().get(i), i);
+        }
+        return map;
+    }
+
+    public static HashMap createIndexToTerm(RelationalAtom relationalAtom) {
+//        System.out.println("Relation :" + relationalAtom.getName() + Catalog.getInstance(null).getSchema(relationalAtom.getName()).length);
+        if (relationalAtom.getTerms().size() != Catalog.getInstance(null).getSchema(relationalAtom.getName()).length) {
+            throw new IllegalArgumentException("The number of terms in the relational atom does not match the schema");
+        }
+        HashMap<Integer, Term> map = new HashMap<>();
+        for (int i = 0; i < relationalAtom.getTerms().size(); i++) {
+            map.put(i, relationalAtom.getTerms().get(i));
         }
         return map;
     }
@@ -87,6 +113,7 @@ public class SelectOperator extends Operator {
             }
             return null;
         }
+
         return term;
     }
 
