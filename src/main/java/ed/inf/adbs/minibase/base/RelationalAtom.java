@@ -24,6 +24,10 @@ public class RelationalAtom extends Atom {
     public void setTerms(List<Term> terms) {
     	this.terms = terms;
     }
+
+    public void setTerm(int index, Term term) {
+    	this.terms.set(index, term);
+    }
     @Override
     public String toString() {
         return name + "(" + Utils.join(terms, ", ") + ")";

@@ -2,7 +2,9 @@ package ed.inf.adbs.minibase.base;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 
 public class QueryPlanner {
     private final SelectOperator selectOperator;
@@ -53,7 +55,7 @@ public class QueryPlanner {
 
 
 //        check if needed to select
-        int index = findComparisonAtoms(body);
+        int index = findAndUpdateCondition(body);
         if (index != -1) {
             List condition = body.subList(index, body.size());
             checkQueryMatchSchema((RelationalAtom) relationalAtom);
@@ -98,26 +100,70 @@ public class QueryPlanner {
     }
 
 
-    /**
-     * Modify the hidden condition from the relational atom by replacing the constants with the variables
-     * and add the hidden condition to the body of the query in the end
-     *
-     * @param body query body to be modified
-     * @return body modified with the hidden condition
-     */
-    public List<Term> showHiddenCondition(List<Atom> body) {
-        int i = 0;
+    public static HashSet<String> getDefinedVariables(List<Atom> body) {
+        HashSet<String> definedVariables = new HashSet<>();
+        // find all variable names in case of clash
         for (Atom atom : body) {
             if (atom instanceof RelationalAtom) {
                 for (Term term : ((RelationalAtom) atom).getTerms()) {
-                    if (term instanceof Constant) {
-//                        ...
+                    if (term instanceof Variable) {
+                        definedVariables.add(term.toString());
                     }
                 }
             }
-            i++;
         }
-        return null;
+        return definedVariables;
+    }
+
+
+    /**
+     * Find the first condition in the body of the query and update the body, if it exists,
+     * and modify the relational atom(if include constant) by creating new var name and add condition.
+     * e.g. R(x,y) :- R(x, 5)    --->  R(x,y) :- R(x, y), y = 5 and return 1
+     *
+     * @param body query body to be modified
+     * @return first condition in the body of the query, else -1
+     */
+    public static int findAndUpdateCondition(List<Atom> body) {
+        int conditionIndex = -1;
+        HashSet<String> definedVariables = getDefinedVariables(body);
+        Random ranObj = new Random();
+
+        for (int i = 0; i < body.size(); i++) {
+            Atom atom = body.get(i);
+            if (atom instanceof RelationalAtom) {
+                for (int j = 0; j < ((RelationalAtom) atom).getTerms().size(); j++) {
+                    if (((RelationalAtom) atom).getTerms().get(j) instanceof Constant) {
+                        // create a new var ( unseen in definedVariables)
+                        String newVar = ranObj.nextInt() + "";
+                        while (definedVariables.contains(newVar)) {
+                            newVar = ranObj.nextInt() + "";
+                        }
+                        definedVariables.add(newVar);
+                        // create a new constant to put into the added condition
+                        Constant newConstant = ((RelationalAtom) atom).getTerms().get(j) instanceof StringConstant ?
+                                new StringConstant(((StringConstant) ((RelationalAtom) atom).getTerms().get(j)).getValue()) :
+                                new IntegerConstant(((IntegerConstant) ((RelationalAtom) atom).getTerms().get(j)).getValue());
+                        // update the term in the relational atom e.g. R(x, 5) ---> R(x, y)
+                        ((RelationalAtom) atom).setTerm(j, new Variable(newVar));
+                        // add the new condition to the body e.g. R(x, 5) :- R(x, y), y = 5
+                        body.add(new ComparisonAtom(new Variable(newVar), newConstant, ComparisonOperator.EQ));
+                        // update the condition index
+                        if (conditionIndex == -1) {
+                            conditionIndex = body.size() - 1;
+                        } // since body does not change in the loop
+                    }
+                }
+                // update the relational atom in the body
+                body.set(i, atom);
+            }
+            if (atom instanceof ComparisonAtom) {
+                if (conditionIndex == -1) {
+                    conditionIndex = i;
+                }
+            }
+        }
+        return conditionIndex;
     }
 }
 

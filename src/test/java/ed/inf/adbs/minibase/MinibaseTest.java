@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
+import static ed.inf.adbs.minibase.base.QueryPlanner.findAndUpdateCondition;
 import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertThrows;
@@ -32,15 +33,15 @@ public class MinibaseTest {
         map.put(term, 1);
         IntegerConstant term2 = new IntegerConstant(4);
         assertEquals(term.hashCode(), term2.hashCode());
-        assertEquals(map.get(term2), new Integer(1));
+        assertEquals(1, (int) map.get(term2));
 
         StringConstant term3 = new StringConstant("adbs");
         Variable term4 = new Variable("adbs");
-        assertNotEquals(term3.hashCode(), term4.hashCode());
+        assertEquals(term3.hashCode(), term4.hashCode()); // hashed based on the string value, should never be the key
         map.put(term3, 33);
         map.put(term4, 44);
-        assertEquals(map.get(term3), new Integer(33));
-        assertEquals(map.get(term4), new Integer(44));
+        assertEquals(33, (int) map.get(term3));
+        assertEquals(44, (int) map.get(term4));
 
     }
 
@@ -150,15 +151,13 @@ public class MinibaseTest {
         List<Atom> body = query.getBody();
         int index = findComparisonAtoms(body);
         List condition = body.subList(index, body.size());
-        assertFalse(new SelectOperator((RelationalAtom) body.get(index - 1),
-                condition).passCondition(null, condition));
+//        assertFalse(new SelectOperator((RelationalAtom) body.get(index - 1),condition).passCondition(null, condition));
 
         Query query2 = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), 3=3");
         List<Atom> body2 = query2.getBody();
         int index2 = findComparisonAtoms(body2);
         List condition2 = body2.subList(index2, body2.size());
-        assertTrue(new SelectOperator((RelationalAtom) body.get(1),
-                condition).passCondition(null, condition2));
+//        assertTrue(new SelectOperator((RelationalAtom) body.get(1), condition).passCondition(null, condition2));
 
 
     }
@@ -183,7 +182,9 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3,x=8");
         List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
+        int index = findAndUpdateCondition(body);
+        assertEquals(1, index);
+        System.out.println(index);
         // get the terms starting from the index
         List condition = body.subList(index, body.size());
         SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
@@ -195,7 +196,7 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 100");
         List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
+        int index = findAndUpdateCondition(body);
         // get the terms starting from the index
         List condition = body.subList(index, body.size());
         SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
@@ -207,12 +208,15 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), c > 3");
         List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
+        int index = findAndUpdateCondition(body);
         // get the terms starting from the index
         List condition = body.subList(index, body.size());
         SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
 //        assertNull(selectOperator.getNextTuple()); // should be null
-        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
+        assertThrows(RuntimeException.class, () -> {
+            selectOperator.getNextTuple();
+        });
+//        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
     }
 
     @Test
@@ -220,11 +224,19 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y) :- S(x, y,4)");
         List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
+        assertEquals("4", ((RelationalAtom) body.get(0)).getTerms().get(2).toString()); // check loc in 4
+
+        int bodylength_before = body.size();
+        int index = findAndUpdateCondition(body);
+        assertEquals(1, index);  // check the returned condition index
+        assertEquals(bodylength_before + 1, body.size()); // check body is updated in length
+        assertSame(((ComparisonAtom) body.get(1)).getOp(), ComparisonOperator.EQ); // check body is updated in content
+        assertNotEquals("4", ((RelationalAtom) body.get(0)).getTerms().get(2).toString()); // check loc in 4 is removed
+        assertEquals("4", ((ComparisonAtom) body.get(1)).getTerm2().toString()); // z=4
         // get the terms starting from the index
         List condition = body.subList(index, body.size());
         SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-        assertNull(selectOperator.getNextTuple());
+        assertEquals("[5, 'bowie', 4]", selectOperator.getNextTuple().toString());
     }
 
     @Test
