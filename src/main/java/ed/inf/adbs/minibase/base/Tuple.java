@@ -37,4 +37,31 @@ public class Tuple {
     public String toString() {
         return Arrays.toString(fields);
     }
+
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return false;
+        }
+        if (!Tuple.class.isAssignableFrom(obj.getClass())) {
+            return false;
+        }
+        final Tuple other = (Tuple) obj;
+        if (this.fields.length != other.fields.length) {
+            return false;
+        }
+        for (int i = 0; i < this.fields.length; i++) {
+            if (!this.fields[i].equals(other.fields[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = Arrays.deepHashCode(this.fields);
+        return hash;
+    }
 }

@@ -18,6 +18,13 @@ public class QueryPlanner {
         this.projectOperator = (ProjectOperator) planOperatorMap.get("project");
     }
 
+    /**
+     * Build the query plan for the given query
+     *
+     * @param query the query to be executed
+     * @return the query plan
+     * @throws Exception
+     */
     public static HashMap<String, Operator> buildQueryPlan(Query query) throws Exception {
 
         HashMap<String, Operator> results = new HashMap<>();
@@ -70,6 +77,18 @@ public class QueryPlanner {
         return results;
     }
 
+
+//    public static void RunQueryPlan(Query query) throws Exception {
+//        HashMap<String, Operator> planOperatorMap = buildQueryPlan(query);
+//        Operator operator = planOperatorMap.get("project");
+//        if (operator == null) {
+//            operator = planOperatorMap.get("select");
+//            if (operator == null) {
+//                operator = planOperatorMap.get("scan");
+//            }
+//        }
+//        operator.dump();
+//    }
 
     /**
      * This function checks if the query is correct with respect to the schema

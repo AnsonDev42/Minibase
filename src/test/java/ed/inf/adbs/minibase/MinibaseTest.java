@@ -11,8 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
-import static ed.inf.adbs.minibase.base.QueryPlanner.findAndUpdateCondition;
-import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;
+import static ed.inf.adbs.minibase.base.QueryPlanner.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertThrows;
 
@@ -163,7 +162,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testSelectOperatorSimple() throws FileNotFoundException {
+    public void testSelectOperatorSimple() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3");
         List<Atom> body = query.getBody();
@@ -178,7 +177,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testSelectOperator2conditions() throws FileNotFoundException {
+    public void testSelectOperator2conditions() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3,x=8");
         List<Atom> body = query.getBody();
@@ -192,7 +191,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testSelectOperatorNoMatch() throws FileNotFoundException {
+    public void testSelectOperatorNoMatch() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 100");
         List<Atom> body = query.getBody();
@@ -204,7 +203,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testSelectOperatorImpossibleVar() throws FileNotFoundException {
+    public void testSelectOperatorImpossibleVar() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), c > 3");
         List<Atom> body = query.getBody();
@@ -220,7 +219,7 @@ public class MinibaseTest {
     }
 
     @Test
-    public void testSelectOperatorHiddenCondition() throws FileNotFoundException {
+    public void testSelectOperatorHiddenCondition() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y) :- S(x, y,4)");
         List<Atom> body = query.getBody();
@@ -257,7 +256,7 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         // TEST SCAN => scan
         Query query = QueryParser.parse("Q(x, z, y) :- R(x, z, y)");
-        HashMap<String, Operator> plan = QueryPlanner.buildQueryPlan(query);
+        HashMap<String, Operator> plan = buildQueryPlan(query);
         assertTrue(plan.get("scan") instanceof ScanOperator);
         assertNotNull(plan.get("scan"));
         assertNull(plan.get("select"));
@@ -265,45 +264,45 @@ public class MinibaseTest {
         assertEquals("[1, 9, 'adbs']", plan.get("scan").getNextTuple().toString());
 
         // TEST SELECT => scan + select
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z, y) :- R(x, z, y)")).get("scan")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(x, z, y) :- R(x, z, y)")).get("scan")
                 instanceof ScanOperator);
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select") //2, 7, 'anlp'
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select") //2, 7, 'anlp'
                 instanceof SelectOperator);
-        assertEquals("[2, 7, 'anlp']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select").
+        assertEquals("[2, 7, 'anlp']", buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select").
                 getNextTuple().toString());
 
 
         // TEST PROJECT => scan + project
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("scan")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("scan")
                 instanceof ScanOperator);
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project")
                 instanceof ProjectOperator);
-        assertEquals("[9, 1, 'adbs']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project").
+        assertEquals("[9, 1, 'adbs']", buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project").
                 getNextTuple().toString());
 
 
         // TEST SELECT + PROJECT => scan + select + project
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("scan")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("scan")
                 instanceof ScanOperator);
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("select")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("select")
                 instanceof SelectOperator);
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("project")
+        assertTrue(buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("project")
                 instanceof ProjectOperator);
-        assertEquals("['adbs', 1]", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(z,x) :- R(x, y,z), y > 3")).get("project").
+        assertEquals("['adbs', 1]", buildQueryPlan(QueryParser.parse("Q(z,x) :- R(x, y,z), y > 3")).get("project").
                 getNextTuple().toString());
 
-        assertEquals("['ids']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(z) :- R(4, y,z), y =2")).get("project").
+        assertEquals("['ids']", buildQueryPlan(QueryParser.parse("Q(z) :- R(4, y,z), y =2")).get("project").
                 getNextTuple().toString());
 
 
 //        check when the query contains table info that does not match to the catalog schema
         assertThrows(Exception.class, () -> {
-            QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x) "));
+            buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x) "));
         });
     }
 
     @Test
-    public void testProjectOperatorWithoutPlanner() throws FileNotFoundException {
+    public void testProjectOperatorWithoutPlanner() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, z) :- R(x, 9, z)");
         List<Atom> body = query.getBody();
@@ -319,6 +318,24 @@ public class MinibaseTest {
         assertEquals("[8, 'ppls']", projectOperator.getNextTuple().toString()); //     8, 9, 'ppls'
 
         assertNull(projectOperator.getNextTuple());
+    }
+
+    @Test
+    public void testProjectSeenTuple() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x) :- T(x,z), z>0");
+        HashMap map = buildQueryPlan(query);
+        ProjectOperator projectOperator = (ProjectOperator) map.get("project");
+        assertEquals("[1]", projectOperator.getNextTuple().toString());
+        assertEquals("[2]", projectOperator.getNextTuple().toString());
+        assertEquals("[4]", projectOperator.getNextTuple().toString());
+//        in here, it should skip [1] since it has been seen
+        assertEquals("[8]", projectOperator.getNextTuple().toString());
+//
+//        1, 1
+//        2, 3
+//        4, 5
+//        1, 3
     }
 
 }

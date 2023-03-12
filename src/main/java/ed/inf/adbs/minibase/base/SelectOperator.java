@@ -13,7 +13,7 @@ public class SelectOperator extends Operator {
     private final HashMap<String, Integer> termToIndexMap;
 
 
-    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> condition) throws FileNotFoundException {
+    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> condition) throws IOException {
         this.relationalAtom = relationalAtom;
         this.childScanOperator = new ScanOperator(relationalAtom.getName());
         this.condition = condition;
@@ -55,16 +55,6 @@ public class SelectOperator extends Operator {
         }
 
         return true;
-    }
-
-    public List<ComparisonAtom> addHiddenCondition() {
-        List<ComparisonAtom> condition = this.condition;
-        for (Term term : relationalAtom.getTerms()) {
-            if (term instanceof Constant) {
-                condition.add(new ComparisonAtom(term, new Variable("hidden"), ComparisonOperator.EQ));
-            }
-        }
-        return condition;
     }
 
 

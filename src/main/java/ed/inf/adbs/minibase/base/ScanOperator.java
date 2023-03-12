@@ -17,10 +17,11 @@ public class ScanOperator extends Operator {
      *
      * @param relationName the String name of the relation
      */
-    public ScanOperator(String relationName) throws FileNotFoundException {
+    public ScanOperator(String relationName) throws IOException {
         ScanOperator.relationName = relationName;
         String filepath = Catalog.getInstance(null).getDataFileName(relationName);
         ScanOperator.reader = new BufferedReader(new FileReader(filepath));
+        ScanOperator.reader.mark(0);
         fieldType = Catalog.getInstance(null).getSchema(relationName);
         currentLocation = 0;
 
@@ -65,7 +66,6 @@ public class ScanOperator extends Operator {
                 Tuple currentTuple = new Tuple(fields);
                 return currentTuple;
             } else {
-                ScanOperator.reader.close();
                 return null;
             }
         } catch (IOException e) {
@@ -80,20 +80,14 @@ public class ScanOperator extends Operator {
      */
     public void reset() throws IOException {
         currentLocation = 0;
-//        reset the reader to the first line
-        try {
-            ScanOperator.reader.close();
-        } catch (IOException e) {
-            System.out.println("Error closing file");
-        }
-        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
-        ScanOperator.reader = new BufferedReader(new FileReader(filepath));
+//        reset the reader to before first line
+//        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
+        ScanOperator.reader.reset();
 
     }
 
     /**
      * Dump the tuples in the relation to the console
-     *
      */
     public void dump() {
         Tuple tuple = getNextTuple();

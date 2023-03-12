@@ -52,7 +52,7 @@ public class ProjectOperator extends Operator {
     @Override
     public Tuple getNextTuple() {
         Tuple tuple;
-        Tuple projectedTuple = null;
+        Tuple projectedTuple;
 
         while ((tuple = childOperator.getNextTuple()) != null) {
 //          Create a new tuple containing only the projected variables
@@ -65,21 +65,21 @@ public class ProjectOperator extends Operator {
                 if (index != null) {
                     fields[i] = tuple.getField(index);
                     i++;
-                } else {
-//                     skip the tuple since it contains an unseen var
+                } else {// skip the tuple since it contains an unseen var
                     tupleSkipFlag = true;
                 }
             }
-
             if (tupleSkipFlag) {
                 continue; // skip the whole tuple
             }
-
             // Check if the projected tuple has already been seen before
             projectedTuple = new Tuple(fields);
             if (!projectedTuples.contains(projectedTuple)) {
+                //TODO: check if this is correct since pigeonhole principle
                 projectedTuples.add(projectedTuple);
                 return projectedTuple;
+            } else {
+                System.out.println("Duplicate tuple: " + projectedTuple);
             }
         }
         return null;
