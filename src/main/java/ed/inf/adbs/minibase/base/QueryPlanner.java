@@ -125,45 +125,67 @@ public class QueryPlanner {
      * @return first condition in the body of the query, else -1
      */
     public static int findAndUpdateCondition(List<Atom> body) {
-        int conditionIndex = -1;
         HashSet<String> definedVariables = getDefinedVariables(body);
         Random ranObj = new Random();
 
         for (int i = 0; i < body.size(); i++) {
             Atom atom = body.get(i);
             if (atom instanceof RelationalAtom) {
-                for (int j = 0; j < ((RelationalAtom) atom).getTerms().size(); j++) {
-                    if (((RelationalAtom) atom).getTerms().get(j) instanceof Constant) {
-                        // create a new var ( unseen in definedVariables)
-                        String newVar = ranObj.nextInt() + "";
-                        while (definedVariables.contains(newVar)) {
-                            newVar = ranObj.nextInt() + "";
-                        }
-                        definedVariables.add(newVar);
-                        // create a new constant to put into the added condition
-                        Constant newConstant = ((RelationalAtom) atom).getTerms().get(j) instanceof StringConstant ?
-                                new StringConstant(((StringConstant) ((RelationalAtom) atom).getTerms().get(j)).getValue()) :
-                                new IntegerConstant(((IntegerConstant) ((RelationalAtom) atom).getTerms().get(j)).getValue());
-                        // update the term in the relational atom e.g. R(x, 5) ---> R(x, y)
-                        ((RelationalAtom) atom).setTerm(j, new Variable(newVar));
-                        // add the new condition to the body e.g. R(x, 5) :- R(x, y), y = 5
-                        body.add(new ComparisonAtom(new Variable(newVar), newConstant, ComparisonOperator.EQ));
-                        // update the condition index
-                        if (conditionIndex == -1) {
-                            conditionIndex = body.size() - 1;
-                        } // since body does not change in the loop
-                    }
-                }
-                // update the relational atom in the body
-                body.set(i, atom);
+                addVarCondition(body, ranObj, definedVariables, i, atom);
             }
             if (atom instanceof ComparisonAtom) {
-                if (conditionIndex == -1) {
-                    conditionIndex = i;
-                }
+                break;
             }
         }
-        return conditionIndex;
+        // find the first condition in the modified body
+        for (int i = 0; i < body.size(); i++) {
+            if (body.get(i) instanceof ComparisonAtom) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Update body if there is hidden condition in the relational atom (e.g. R(x, 5))
+     * by replacing new variables to Constants (e.g. 5-> y);
+     * and adding new condition to the body (e.g. y = 5)
+     * e.g. Q() :- R(x, 5)    --->  Q() :- R(x, y), y = 5      and return true
+     *
+     * @param body             query body to be modified
+     * @param ranObj           random object
+     * @param definedVariables all defined variables by user
+     * @param i                index of the relational atom in the body
+     * @param atom             the relational atom to be modified
+     * @return true if the relational atom is modified, false otherwise
+     */
+    public static Boolean addVarCondition(List<Atom> body, Random ranObj, HashSet<String> definedVariables, int i, Atom atom) {
+        RelationalAtom relationalAtom = (RelationalAtom) atom;
+        Boolean added = false;
+        List<Term> terms = relationalAtom.getTerms();
+        for (int j = 0; j < terms.size(); j++) {
+            Term term = terms.get(j);
+            if (term instanceof Constant) {
+                // create a new var ( unseen in definedVariables)
+                String newVar = "";
+                do {
+                    newVar = ranObj.nextInt() + "";
+                } while (definedVariables.contains(newVar));
+                definedVariables.add(newVar);
+                // create a new constant to put into the added condition
+                Constant newConstant = term instanceof StringConstant
+                        ? new StringConstant(((StringConstant) term).getValue())
+                        : new IntegerConstant(((IntegerConstant) term).getValue());
+                // update the term in the relational atom e.g. (x, 5) ---> (x, y)
+                relationalAtom.setTerm(j, new Variable(newVar));
+                // add the new condition to the body e.g. R(x, 5) :- R(x, 5), y = 5
+                body.add(new ComparisonAtom(new Variable(newVar), newConstant, ComparisonOperator.EQ));
+                added = true;          // update the changed status
+
+            }
+        }
+        body.set(i, relationalAtom); // update in the body e.g. R(x, 5) ---> R(x, y)
+        return added;
     }
 }
 

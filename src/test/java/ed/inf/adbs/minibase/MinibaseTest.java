@@ -239,6 +239,19 @@ public class MinibaseTest {
         assertEquals("[5, 'bowie', 4]", selectOperator.getNextTuple().toString());
     }
 
+
+    @Test
+    public void testSelectOperatorHiddenConditionMultiple() throws FileNotFoundException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x) :- S(5, 'bowie', x)");
+        List<Atom> body = query.getBody();
+        int bodylength_before = body.size();
+        int index = findAndUpdateCondition(body);
+        assertEquals(1, index);  // check the returned condition index
+        assertEquals(bodylength_before + 2, body.size()); // check body is updated in length
+
+    }
+
     @Test
     public void testQueryPlanner() throws Exception {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
