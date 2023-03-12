@@ -83,16 +83,14 @@ public class ScanOperator extends Operator {
     @Override
     public void reset() throws IOException {
         currentLocation = 0;
-//        reset the reader to before first line
-//        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
         try {
             ScanOperator.reader.reset();
+            ScanOperator.reader.mark(0);
         } catch (IOException e) {
             fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
             ScanOperator.reader = new BufferedReader(fileReader);
             ScanOperator.reader.mark(0);
             System.out.println("Reset successfully");
         }
-
     }
 }

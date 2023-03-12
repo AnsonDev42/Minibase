@@ -5,7 +5,7 @@ import java.io.IOException;
 public class Operator {
 
 
-    public Tuple getNextTuple() {
+    public Tuple getNextTuple() throws IOException {
         throw new UnsupportedOperationException("Not implemented");
     }
 
@@ -16,7 +16,7 @@ public class Operator {
     /**
      * Dump the tuples in the relation to the console
      */
-    public void dump() {
+    public void dump() throws IOException {
         Tuple tuple = getNextTuple();
         while (tuple != null) {
             System.out.println(tuple);

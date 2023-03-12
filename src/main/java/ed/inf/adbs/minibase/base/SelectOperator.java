@@ -109,12 +109,4 @@ public class SelectOperator extends Operator {
     public void reset() throws IOException {
         childScanOperator.reset();
     }
-
-//    public void dump() {
-//        Tuple tuple = getNextTuple();
-//        while (tuple != null) {
-//            System.out.println(tuple);
-//            tuple = getNextTuple();
-//        }
-//    }
 }

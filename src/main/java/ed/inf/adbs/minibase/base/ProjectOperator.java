@@ -50,7 +50,7 @@ public class ProjectOperator extends Operator {
     }
 
     @Override
-    public Tuple getNextTuple() {
+    public Tuple getNextTuple() throws IOException {
         Tuple tuple;
         Tuple projectedTuple;
 
@@ -90,11 +90,4 @@ public class ProjectOperator extends Operator {
         childOperator.reset();
         projectedTuples.clear();
     }
-
-//    public void dump() {
-//        Tuple tuple;
-//        while ((tuple = getNextTuple()) != null) {
-//            System.out.println(tuple);
-//        }
-//    }
 }
