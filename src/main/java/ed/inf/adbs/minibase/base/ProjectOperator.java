@@ -14,13 +14,19 @@ public class ProjectOperator extends Operator {
     public ProjectOperator(Operator childOperator, List<Variable> projectedVars, Atom relationalAtom) {
         ProjectOperator.childOperator = childOperator;
         this.projectedVars = projectedVars;
-        this.varIndexMap = new HashMap<>();
         this.projectedTuples = new HashSet<>();
         this.relationalAtom = (RelationalAtom) relationalAtom;
+        this.varIndexMap = createProjectionMap();
+    }
 
-        // Map each projected variable to its corresponding index in the original tuples
 
-        //1. build a map of var to index in the table
+    /**
+     * Create a map of projected variables to their corresponding index in the original tuples
+     *
+     * @return a map of projected variables to their corresponding index in the original tuples
+     */
+    public Map<Term, Integer> createProjectionMap() {
+        //1. build a map of var to index in the table e.g. R(x,y,z)  x -> 0, y -> 1, z -> 2
         HashMap relationMap = new HashMap<>();
         List<Term> terms = this.relationalAtom.getTerms();
         for (int i = 0; i < terms.size(); i++) {
@@ -28,33 +34,19 @@ public class ProjectOperator extends Operator {
                 relationMap.put(terms.get(i), i);
             }
         }
-        //2. build a map of var to index in the projected tuple
+
+        //2. build a map of var to index in the query e.g. Q(y,x)  y -> 1, x -> 0
+        HashMap<Term, Integer> termToIndexMap = new HashMap<>();
         for (int i = 0; i < projectedVars.size(); i++) {
-            if (projectedVars.get(i) instanceof Variable) {
+            if (projectedVars.get(i) != null) {
                 Integer tmp = (Integer) relationMap.get(projectedVars.get(i));
                 if (tmp == null) {
                     throw new RuntimeException("Error: field value is null, probably bcz an unseen var in Q");
                 }
-                varIndexMap.put(projectedVars.get(i), tmp);
+                termToIndexMap.put(projectedVars.get(i), tmp);
             }
         }
-
-
-//        int i = 0;
-//        for (Term var : this.projectedVars) {
-//            if (var instanceof Variable) {
-////                map all var to indx in the table e.g. Q(y,x) -: R(x,y,z) => y:1, x:0
-//                for (int j = 0; j < (this.relationalAtom.getTerms().size(); j++) {
-//                    if (this.relationalAtom.getTerms().get(j).toString().equals(var.toString())) {
-//                        varIndexMap.put(var, j);
-//                    }
-//                }
-//                varIndexMap.put(var, i);
-//            } else {
-////                varIndexMap.put(var, i);
-//            }
-//            i++;
-//        }
+        return termToIndexMap;
     }
 
     @Override
@@ -99,12 +91,3 @@ public class ProjectOperator extends Operator {
         projectedTuples.clear();
     }
 }
-//
-//Here’s how the ProjectOperator works:
-//
-//        • When getNextTuple() is called, it retrieves tuples one-by-one from its child operator, either a ScanOperator or a SelectOperator.
-//        • It creates a new tuple containing only the desired fields from the original tuple, based on the list of projected variables.
-//        • If the new tuple has already been seen before, it tries the next tuple from the child operator, until it reaches a new one.
-//        • If the new tuple is new, it adds it to the set of projected tuples and returns it as the next tuple.
-//
-//        You will need to make sure that this operator gets correctly instantiated and used in your code, depending on the query plan for a given query. It should be added as the parent of the ScanOperator or SelectOperator that will produce its input tuples.
