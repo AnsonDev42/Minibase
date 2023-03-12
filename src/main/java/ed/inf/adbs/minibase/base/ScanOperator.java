@@ -11,6 +11,7 @@ public class ScanOperator extends Operator {
     private static BufferedReader reader;
     private static int currentLocation;
     private final String[] fieldType;
+    private static FileReader fileReader;
 
     /**
      * Constructor for ScanOperator
@@ -19,8 +20,9 @@ public class ScanOperator extends Operator {
      */
     public ScanOperator(String relationName) throws IOException {
         ScanOperator.relationName = relationName;
-        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
-        ScanOperator.reader = new BufferedReader(new FileReader(filepath));
+        // TODO: optimise the get FileReader by not retrieving from Catalog every time
+        fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
+        ScanOperator.reader = new BufferedReader(fileReader);
         ScanOperator.reader.mark(0);
         fieldType = Catalog.getInstance(null).getSchema(relationName);
         currentLocation = 0;
@@ -78,22 +80,19 @@ public class ScanOperator extends Operator {
     /**
      * Reset the current location to the beginning of the file
      */
+    @Override
     public void reset() throws IOException {
         currentLocation = 0;
 //        reset the reader to before first line
 //        String filepath = Catalog.getInstance(null).getDataFileName(relationName);
-        ScanOperator.reader.reset();
-
-    }
-
-    /**
-     * Dump the tuples in the relation to the console
-     */
-    public void dump() {
-        Tuple tuple = getNextTuple();
-        while (tuple != null) {
-            System.out.println(tuple);
-            tuple = getNextTuple();
+        try {
+            ScanOperator.reader.reset();
+        } catch (IOException e) {
+            fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
+            ScanOperator.reader = new BufferedReader(fileReader);
+            ScanOperator.reader.mark(0);
+            System.out.println("Reset successfully");
         }
+
     }
 }

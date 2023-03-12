@@ -331,11 +331,19 @@ public class MinibaseTest {
         assertEquals("[4]", projectOperator.getNextTuple().toString());
 //        in here, it should skip [1] since it has been seen
         assertEquals("[8]", projectOperator.getNextTuple().toString());
-//
 //        1, 1
 //        2, 3
 //        4, 5
 //        1, 3
+    }
+
+    @Test
+    public void testSelectionDump() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x) :- T(x,z), z=3");
+        HashMap map = buildQueryPlan(query);
+        SelectOperator selectOperator = (SelectOperator) map.get("select");
+        selectOperator.dump();
     }
 
 }

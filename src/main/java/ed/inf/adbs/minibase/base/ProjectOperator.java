@@ -90,4 +90,11 @@ public class ProjectOperator extends Operator {
         childOperator.reset();
         projectedTuples.clear();
     }
+
+//    public void dump() {
+//        Tuple tuple;
+//        while ((tuple = getNextTuple()) != null) {
+//            System.out.println(tuple);
+//        }
+//    }
 }
