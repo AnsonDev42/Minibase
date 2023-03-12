@@ -9,21 +9,52 @@ public class ProjectOperator extends Operator {
     private final List<Variable> projectedVars;
     private final Map<Term, Integer> varIndexMap;
     private final Set<Tuple> projectedTuples;
+    private final RelationalAtom relationalAtom;
 
-    public ProjectOperator(Operator childOperator, List<Variable> projectedVars) {
+    public ProjectOperator(Operator childOperator, List<Variable> projectedVars, Atom relationalAtom) {
         ProjectOperator.childOperator = childOperator;
         this.projectedVars = projectedVars;
         this.varIndexMap = new HashMap<>();
         this.projectedTuples = new HashSet<>();
+        this.relationalAtom = (RelationalAtom) relationalAtom;
 
         // Map each projected variable to its corresponding index in the original tuples
-        int i = 0;
-        for (Term var : this.projectedVars) {
-            if (var instanceof Variable) {
-                varIndexMap.put(var, i);
+
+        //1. build a map of var to index in the table
+        HashMap relationMap = new HashMap<>();
+        List<Term> terms = this.relationalAtom.getTerms();
+        for (int i = 0; i < terms.size(); i++) {
+            if (terms.get(i) instanceof Variable) {
+                relationMap.put(terms.get(i), i);
             }
-            i++;
         }
+        //2. build a map of var to index in the projected tuple
+        for (int i = 0; i < projectedVars.size(); i++) {
+            if (projectedVars.get(i) instanceof Variable) {
+                Integer tmp = (Integer) relationMap.get(projectedVars.get(i));
+                if (tmp == null) {
+                    throw new RuntimeException("Error: field value is null, probably bcz an unseen var in Q");
+                }
+                varIndexMap.put(projectedVars.get(i), tmp);
+            }
+        }
+
+
+//        int i = 0;
+//        for (Term var : this.projectedVars) {
+//            if (var instanceof Variable) {
+////                map all var to indx in the table e.g. Q(y,x) -: R(x,y,z) => y:1, x:0
+//                for (int j = 0; j < (this.relationalAtom.getTerms().size(); j++) {
+//                    if (this.relationalAtom.getTerms().get(j).toString().equals(var.toString())) {
+//                        varIndexMap.put(var, j);
+//                    }
+//                }
+//                varIndexMap.put(var, i);
+//            } else {
+////                varIndexMap.put(var, i);
+//            }
+//            i++;
+//        }
     }
 
     @Override

@@ -255,23 +255,71 @@ public class MinibaseTest {
     @Test
     public void testQueryPlanner() throws Exception {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, z, y) :- R(x, z, y), z < 8");
+        // TEST SCAN => scan
+        Query query = QueryParser.parse("Q(x, z, y) :- R(x, z, y)");
         HashMap<String, Operator> plan = QueryPlanner.buildQueryPlan(query);
-        assertTrue(plan.get("select") instanceof SelectOperator);
         assertTrue(plan.get("scan") instanceof ScanOperator);
-        assertNotNull(plan.get("select"));
         assertNotNull(plan.get("scan"));
-        assertNotNull(plan.get("project"));
+        assertNull(plan.get("select"));
+        assertNull(plan.get("project"));
+        assertEquals("[1, 9, 'adbs']", plan.get("scan").getNextTuple().toString());
 
-        assertEquals("[2, 7, 'anlp']", plan.get("select").getNextTuple().toString());
-        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x, z, y)")).get("scan")
+        // TEST SELECT => scan + select
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z, y) :- R(x, z, y)")).get("scan")
                 instanceof ScanOperator);
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select") //2, 7, 'anlp'
+                instanceof SelectOperator);
+        assertEquals("[2, 7, 'anlp']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, z) :- R(x, z, 'anlp')")).get("select").
+                getNextTuple().toString());
+
+
+        // TEST PROJECT => scan + project
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("scan")
+                instanceof ScanOperator);
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project")
+                instanceof ProjectOperator);
+        assertEquals("[9, 1, 'adbs']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z)")).get("project").
+                getNextTuple().toString());
+
+
+        // TEST SELECT + PROJECT => scan + select + project
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("scan")
+                instanceof ScanOperator);
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("select")
+                instanceof SelectOperator);
+        assertTrue(QueryPlanner.buildQueryPlan(QueryParser.parse("Q(y, x,z) :- R(x, y,z), y > 3")).get("project")
+                instanceof ProjectOperator);
+        assertEquals("['adbs', 1]", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(z,x) :- R(x, y,z), y > 3")).get("project").
+                getNextTuple().toString());
+
+        assertEquals("['ids']", QueryPlanner.buildQueryPlan(QueryParser.parse("Q(z) :- R(4, y,z), y =2")).get("project").
+                getNextTuple().toString());
+
+
 //        check when the query contains table info that does not match to the catalog schema
         assertThrows(Exception.class, () -> {
             QueryPlanner.buildQueryPlan(QueryParser.parse("Q(x, y) :- R(x) "));
         });
     }
 
+    @Test
+    public void testProjectOperatorWithoutPlanner() throws FileNotFoundException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, z) :- R(x, 9, z)");
+        List<Atom> body = query.getBody();
+        int index = findAndUpdateCondition(body);
+        // get the terms starting from the index
+        List condition = body.subList(index, body.size());
+        assertEquals(1, index);
+        assertEquals(ComparisonOperator.EQ, ((ComparisonAtom) body.get(index)).getOp());
+        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
+        ProjectOperator projectOperator = new ProjectOperator(selectOperator, query.getHead().getVariables(), body.get(0));
+        assertEquals("[1, 'adbs']", projectOperator.getNextTuple().toString()); //        8, 9, 'rl'
+        assertEquals("[8, 'rl']", projectOperator.getNextTuple().toString()); //        8, 9, 'rl'
+        assertEquals("[8, 'ppls']", projectOperator.getNextTuple().toString()); //     8, 9, 'ppls'
+
+        assertNull(projectOperator.getNextTuple());
+    }
 
 }
 

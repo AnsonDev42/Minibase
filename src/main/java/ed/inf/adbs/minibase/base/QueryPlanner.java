@@ -21,15 +21,15 @@ public class QueryPlanner {
     public static HashMap<String, Operator> buildQueryPlan(Query query) throws Exception {
 
         HashMap<String, Operator> results = new HashMap<>();
-
         Head head = query.getHead();
         List<Atom> body = query.getBody();
         if (body.size() == 0) {
             throw new Exception("Query body is empty");
         }
 
-        List<Variable> variables = head.getVariables();
-//        create the scan operator
+        // handle hidden condition
+        int conIdx = findAndUpdateCondition(body);
+        // 1. create the scan operator
         Atom relationalAtom = body.get(0);
         if (relationalAtom instanceof RelationalAtom) {
             checkQueryMatchSchema((RelationalAtom) relationalAtom);
@@ -38,13 +38,22 @@ public class QueryPlanner {
         } else
             throw new Exception("The first atom in the query body is not a relational atom");
 
-        //        check if needed to project by checking the number
-        //        and checking order of variables in the head is the same as the schema
+//        2. check if need to select
+        if (conIdx != -1) {
+            List condition = body.subList(conIdx, body.size());
+            checkQueryMatchSchema((RelationalAtom) relationalAtom);
+            results.put("select", new SelectOperator((RelationalAtom) relationalAtom, condition));
+        }
+
+
+        // check if needed to project by checking length of vars in head
         Boolean needProject = false;
+        List<Variable> variables = head.getVariables();
         if (variables.size() != ((RelationalAtom) relationalAtom).getTerms().size()) {
             needProject = true;
         }
-        if (!needProject) { // continue checking
+        // check if  order of variables in the head is the same as the schema e.g .Q(y,x) :- R(x,y)
+        if (!needProject) {
             for (int i = 0; i < variables.size(); i++) {
                 if (!variables.get(i).getName().equals(((RelationalAtom) relationalAtom).getTerms().get(i).toString())) {
                     needProject = true;
@@ -52,17 +61,12 @@ public class QueryPlanner {
                 }
             }
         }
-
-
-//        check if needed to select
-        int index = findAndUpdateCondition(body);
-        if (index != -1) {
-            List condition = body.subList(index, body.size());
-            checkQueryMatchSchema((RelationalAtom) relationalAtom);
-            results.put("select", new SelectOperator((RelationalAtom) relationalAtom, condition));
+        if (needProject && conIdx != -1) {
+            results.put("project", new ProjectOperator(results.get("select"), variables, relationalAtom));
+        } else if (needProject && conIdx == -1) {
+            results.put("project", new ProjectOperator(results.get("scan"), variables, relationalAtom));
         }
 
-        results.put("project", new ProjectOperator(results.get("scan"), variables));
         return results;
     }
 
