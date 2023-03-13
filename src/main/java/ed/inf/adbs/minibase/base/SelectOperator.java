@@ -24,7 +24,7 @@ public class SelectOperator extends Operator {
     public Tuple getNextTuple() {
         Tuple tuple = childScanOperator.getNextTuple();
         while (tuple != null) {
-            if (passCondition(tuple, condition)) {
+            if (passCondition(tuple, condition, termToIndexMap)) {
                 return tuple;
             }
             tuple = childScanOperator.getNextTuple();
@@ -39,10 +39,10 @@ public class SelectOperator extends Operator {
      * @param condition the condition(may contain multiple ComparsionAtoms) to be checked e.g. x < y and z! = ’adbs’
      * @return true if the tuple satisfies the condition, false otherwise
      */
-    public Boolean passCondition(Tuple tuple, List<ComparisonAtom> condition) {
+    public static Boolean passCondition(Tuple tuple, List<ComparisonAtom> condition, HashMap<String, Integer> termToIndexMap) {
         for (ComparisonAtom comparisonAtom : condition) {
-            Term left = getFieldValue(tuple, comparisonAtom.getTerm1());
-            Term right = getFieldValue(tuple, comparisonAtom.getTerm2());
+            Term left = getFieldValue(tuple, comparisonAtom.getTerm1(), termToIndexMap);
+            Term right = getFieldValue(tuple, comparisonAtom.getTerm2(), termToIndexMap);
             if (left == null || right == null) {
                 System.out.println("Error: field value is null");
 //                return false;
@@ -89,7 +89,7 @@ public class SelectOperator extends Operator {
      * @param term  the term might be a variable
      * @return the actual field value of the term in the tuple
      */
-    private Term getFieldValue(Tuple tuple, Term term) {
+    private static Term getFieldValue(Tuple tuple, Term term, HashMap<String, Integer> termToIndexMap) {
         if (tuple == null) {
             System.out.println("Error: tuple is null");
             throw new RuntimeException("Error: variable is null");
