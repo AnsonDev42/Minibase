@@ -8,15 +8,15 @@ import java.util.List;
 public class SelectOperator extends Operator {
     private final RelationalAtom relationalAtom;
     private final ScanOperator childScanOperator;
-    private final List<ComparisonAtom> condition;
+    private final List<ComparisonAtom> conditions;
 
     private final HashMap<String, Integer> termToIndexMap;
 
 
-    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> condition) throws IOException {
+    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> conditions) throws IOException {
         this.relationalAtom = relationalAtom;
         this.childScanOperator = new ScanOperator(relationalAtom.getName());
-        this.condition = condition;
+        this.conditions = conditions;
         this.termToIndexMap = createTermToIndexMap(relationalAtom);
     }
 
@@ -24,7 +24,7 @@ public class SelectOperator extends Operator {
     public Tuple getNextTuple() {
         Tuple tuple = childScanOperator.getNextTuple();
         while (tuple != null) {
-            if (passCondition(tuple, condition, termToIndexMap)) {
+            if (passConditions(tuple, tuple, conditions, termToIndexMap, termToIndexMap)) {
                 return tuple;
             }
             tuple = childScanOperator.getNextTuple();
@@ -33,27 +33,26 @@ public class SelectOperator extends Operator {
     }
 
     /**
-     * Check if the tuple satisfies the condition
+     * Check if the leftTuple satisfies the conditions
      *
-     * @param tuple     the tuple to be checked
-     * @param condition the condition(may contain multiple ComparsionAtoms) to be checked e.g. x < y and z! = ’adbs’
-     * @return true if the tuple satisfies the condition, false otherwise
+     * @param leftTuple  the leftTuple to be checked
+     * @param conditions the conditions(may contain multiple ComparisonAtoms) to be checked e.g. x < y and z! = ’adbs’
+     * @return true if the leftTuple satisfies the conditions, false otherwise
      */
-    public static Boolean passCondition(Tuple tuple, List<ComparisonAtom> condition, HashMap<String, Integer> termToIndexMap) {
-        for (ComparisonAtom comparisonAtom : condition) {
-            Term left = getFieldValue(tuple, comparisonAtom.getTerm1(), termToIndexMap);
-            Term right = getFieldValue(tuple, comparisonAtom.getTerm2(), termToIndexMap);
+    public static Boolean passConditions(Tuple leftTuple, Tuple rightTuple, List<ComparisonAtom> conditions,
+                                         HashMap<String, Integer> leftTermToIndexMap, HashMap<String, Integer> rightTermToIndexMap) {
+        for (ComparisonAtom comparisonAtom : conditions) {
+            Term left = getFieldValue(leftTuple, comparisonAtom.getTerm1(), leftTermToIndexMap);
+            Term right = getFieldValue(rightTuple, comparisonAtom.getTerm2(), rightTermToIndexMap);
             if (left == null || right == null) {
                 System.out.println("Error: field value is null");
-//                return false;
-                throw new RuntimeException("Error: field value is null, probably bcz an unseen var in condition");
-//                return true;
+//                return false; ?true;
+                throw new RuntimeException("Error: field value is null, probably bcz an unseen var in conditions");
             }
             if (!comparisonAtom.getOp().compare(left, right)) {
                 return false;
             }
         }
-
         return true;
     }
 
