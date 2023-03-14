@@ -6,9 +6,7 @@ import org.junit.Test;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
 import static ed.inf.adbs.minibase.base.QueryPlanner.*;
@@ -344,6 +342,36 @@ public class MinibaseTest {
         HashMap map = buildQueryPlan(query);
         SelectOperator selectOperator = (SelectOperator) map.get("select");
         selectOperator.dump();
+    }
+
+    @Test
+    public void testTupleJoin() throws IOException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3");
+        List<Atom> body = query.getBody();
+        int index = findComparisonAtoms(body);
+        // get the terms starting from the index
+        List condition = body.subList(index, body.size());
+        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
+//        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
+//        assertEquals("[2, 7, 'anlp']", selectOperator.getNextTuple().toString());
+        Tuple jointTuple = Tuple.join(selectOperator.getNextTuple(), selectOperator.getNextTuple());
+        assertEquals("[1, 9, 'adbs', 2, 7, 'anlp']", jointTuple.toString());
+
+    }
+
+    @Test
+    public void testJoinOperatorSimple() throws IOException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y, z) :- R(a, b, c), S(x, y, z), a=z");
+        List<Atom> body = query.getBody();
+        ScanOperator leftChild = new ScanOperator(((RelationalAtom) body.get(0)).getName());
+        ScanOperator rightChild = new ScanOperator(((RelationalAtom) body.get(1)).getName());
+        List<RelationalAtom> variables = Arrays.asList((RelationalAtom) body.get(0), (RelationalAtom) body.get(1));
+        List<ComparisonAtom> joinConditions = Collections.singletonList((ComparisonAtom) body.get(2));
+        JoinOperator jOp = new JoinOperator(leftChild, rightChild, variables, joinConditions);
+        assertEquals("[2, 7, 'anlp', 2, 'anka', 2]", jOp.getNextTuple().toString());
+
     }
 
 }

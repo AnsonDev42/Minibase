@@ -59,6 +59,23 @@ public class Tuple {
         return true;
     }
 
+/**
+     * Join two tuples
+     *
+     * @param tuple1 the first tuple
+     * @param tuple2 the second tuple
+     * @return a new tuple joined from tuple1 and tuple2
+     */
+    public static Tuple join(Tuple tuple1, Tuple tuple2) {
+        Object[] fields1 = tuple1.getFields();
+        Object[] fields2 = tuple2.getFields();
+        Object[] joinedFields = new Object[fields1.length + fields2.length];
+        System.arraycopy(fields1, 0, joinedFields, 0, fields1.length);
+        System.arraycopy(fields2, 0, joinedFields, fields1.length, fields2.length);
+        return new Tuple(joinedFields);
+    }
+
+
     @Override
     public int hashCode() {
         int hash = Arrays.deepHashCode(this.fields);

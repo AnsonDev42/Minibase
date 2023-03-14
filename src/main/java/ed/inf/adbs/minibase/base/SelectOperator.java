@@ -20,6 +20,16 @@ public class SelectOperator extends Operator {
         this.termToIndexMap = createTermToIndexMap(relationalAtom);
     }
 
+    /**
+     * Get the relation name
+     *
+     * @return the relation name
+     */
+    public String getRelationName() {
+        return this.relationalAtom.getName();
+    }
+    
+
     @Override
     public Tuple getNextTuple() {
         Tuple tuple = childScanOperator.getNextTuple();

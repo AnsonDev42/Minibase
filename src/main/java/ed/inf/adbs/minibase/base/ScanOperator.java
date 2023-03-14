@@ -1,16 +1,14 @@
 package ed.inf.adbs.minibase.base;
 
 import java.io.BufferedReader;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
 
 public class ScanOperator extends Operator {
-    private static String relationName;
-    private static BufferedReader reader;
+    private final String relationName;
+    private BufferedReader reader;
     private static int currentLocation;
-    private final String[] fieldType;
+    private final String[] fieldTypes;
     private static FileReader fileReader;
 
     /**
@@ -19,15 +17,25 @@ public class ScanOperator extends Operator {
      * @param relationName the String name of the relation
      */
     public ScanOperator(String relationName) throws IOException {
-        ScanOperator.relationName = relationName;
+        this.relationName = relationName;
         // TODO: optimise the get FileReader by not retrieving from Catalog every time
         fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
-        ScanOperator.reader = new BufferedReader(fileReader);
-        ScanOperator.reader.mark(0);
-        fieldType = Catalog.getInstance(null).getSchema(relationName);
+        this.reader = new BufferedReader(fileReader);
+        this.reader.mark(0);
+        this.fieldTypes = Catalog.getInstance(null).getSchema(relationName);
         currentLocation = 0;
 
     }
+
+    /**
+     * Get the relation name
+     *
+     * @return the relation name
+     */
+    public String getRelationName() {
+        return relationName;
+    }
+
 
     /**
      * given a string field and a string indicates its type , convert field to a term
@@ -57,13 +65,15 @@ public class ScanOperator extends Operator {
      */
     public Tuple getNextTuple() {
         try {
-            String line = ScanOperator.reader.readLine();
+            String line = this.reader.readLine();
             if (line != null) {
 //            split the line by comma and remove white space
                 String[] data = line.split(",");
                 Object[] fields = new Object[data.length];
                 for (int i = 0; i < data.length; i++) {
-                    fields[i] = convertToTerm(data[i], fieldType[i]);  // fieldType[i] is the type of the ith field
+                    System.out.println("when i = " + i + " data[i] = " + data[i] + " fieldType[i] = " + fieldTypes[i]);
+
+                    fields[i] = convertToTerm(data[i], this.fieldTypes[i]);  // fieldType[i] is the type of the ith field
                 }
                 Tuple currentTuple = new Tuple(fields);
                 return currentTuple;
@@ -84,12 +94,12 @@ public class ScanOperator extends Operator {
     public void reset() throws IOException {
         currentLocation = 0;
         try {
-            ScanOperator.reader.reset();
-            ScanOperator.reader.mark(0);
+            this.reader.reset();
+            this.reader.mark(0);
         } catch (IOException e) {
             fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
-            ScanOperator.reader = new BufferedReader(fileReader);
-            ScanOperator.reader.mark(0);
+            this.reader = new BufferedReader(fileReader);
+            this.reader.mark(0);
             System.out.println("Reset successfully");
         }
     }

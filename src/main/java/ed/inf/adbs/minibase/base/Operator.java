@@ -23,4 +23,8 @@ public class Operator {
             tuple = getNextTuple();
         }
     }
+
+    protected String getRelationName() {
+        return null;
+    }
 }
