@@ -18,6 +18,16 @@ public class QueryPlanner {
         this.projectOperator = (ProjectOperator) planOperatorMap.get("project");
     }
 
+    public Operator getRootOperator() {
+        if (this.projectOperator != null) {
+            return this.projectOperator;
+        } else if (this.selectOperator != null) {
+            return this.selectOperator;
+        } else {
+            return this.scanOperator;
+        }
+    }
+
     /**
      * Build the query plan for the given query
      *
@@ -166,6 +176,9 @@ public class QueryPlanner {
                 return i;
             }
         }
+
+
+        // build relational atom index in the body to
         return -1;
     }
 
