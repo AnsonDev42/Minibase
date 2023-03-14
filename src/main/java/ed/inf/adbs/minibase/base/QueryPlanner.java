@@ -123,14 +123,14 @@ public class QueryPlanner {
     }
 
 
-    public static HashSet<String> getDefinedVariables(List<Atom> body) {
-        HashSet<String> definedVariables = new HashSet<>();
+    public static HashMap<String, Integer> getDefinedVariables(List<Atom> body) {
+        HashMap<String, Integer> definedVariables = new HashMap<>();
         // find all variable names in case of clash
         for (Atom atom : body) {
             if (atom instanceof RelationalAtom) {
                 for (Term term : ((RelationalAtom) atom).getTerms()) {
                     if (term instanceof Variable) {
-                        definedVariables.add(term.toString());
+                        definedVariables.put(term.toString(), 1);
                     }
                 }
             }
@@ -148,7 +148,7 @@ public class QueryPlanner {
      * @return first condition in the body of the query, else -1
      */
     public static int findAndUpdateCondition(List<Atom> body) {
-        HashSet<String> definedVariables = getDefinedVariables(body);
+        HashMap<String, Integer> definedVariables = getDefinedVariables(body);
         Random ranObj = new Random();
 
         for (int i = 0; i < body.size(); i++) {
@@ -182,29 +182,33 @@ public class QueryPlanner {
      * @param atom             the relational atom to be modified
      * @return true if the relational atom is modified, false otherwise
      */
-    public static Boolean addVarCondition(List<Atom> body, Random ranObj, HashSet<String> definedVariables, int i, Atom atom) {
+    public static Boolean addVarCondition(List<Atom> body, Random ranObj, HashMap<String, Integer> definedVariables, int i, Atom atom) {
         RelationalAtom relationalAtom = (RelationalAtom) atom;
         Boolean added = false;
         List<Term> terms = relationalAtom.getTerms();
         for (int j = 0; j < terms.size(); j++) {
             Term term = terms.get(j);
-            if (term instanceof Constant) {
+            //either constant or variable that has been seen before
+            if ((term instanceof Constant) || definedVariables.get(term.toString()) == 0) {
                 // create a new var ( unseen in definedVariables)
                 String newVar = "";
                 do {
                     newVar = ranObj.nextInt() + "";
-                } while (definedVariables.contains(newVar));
-                definedVariables.add(newVar);
-                // create a new constant to put into the added condition
-                Constant newConstant = term instanceof StringConstant
-                        ? new StringConstant(((StringConstant) term).getValue())
-                        : new IntegerConstant(((IntegerConstant) term).getValue());
+                } while (definedVariables.get(newVar) != null);
+                definedVariables.put(newVar, 0);
                 // update the term in the relational atom e.g. (x, 5) ---> (x, y)
                 relationalAtom.setTerm(j, new Variable(newVar));
+                Term newTerm;
+                if (term instanceof Constant) {// create a new constant to put into the added condition
+                    newTerm = term instanceof StringConstant
+                            ? new StringConstant(((StringConstant) term).getValue())
+                            : new IntegerConstant(((IntegerConstant) term).getValue());
+                } else {//if (term instanceof Variable) {
+                    newTerm = new Variable(term.toString());// create a new constant to put into the added condition
+                }
                 // add the new condition to the body e.g. R(x, 5) :- R(x, 5), y = 5
-                body.add(new ComparisonAtom(new Variable(newVar), newConstant, ComparisonOperator.EQ));
+                body.add(new ComparisonAtom(new Variable(newVar), newTerm, ComparisonOperator.EQ));
                 added = true;          // update the changed status
-
             }
         }
         body.set(i, relationalAtom); // update in the body e.g. R(x, 5) ---> R(x, y)
