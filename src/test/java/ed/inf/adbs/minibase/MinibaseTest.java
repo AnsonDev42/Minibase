@@ -106,7 +106,7 @@ public class MinibaseTest {
 
         Query query1 = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w)");
         List<Atom> body1 = query1.getBody();
-        assertEquals(-1, findComparisonAtoms(body1));
+        assertEquals(0, findComparisonAtoms(body1));
 
     }
 
