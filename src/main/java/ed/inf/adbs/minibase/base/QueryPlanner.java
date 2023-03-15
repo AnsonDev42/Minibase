@@ -1,8 +1,8 @@
 package ed.inf.adbs.minibase.base;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+
+import static ed.inf.adbs.minibase.Utils.copyTerm;
 
 public class QueryPlanner {
     private final SelectOperator selectOperator;
@@ -43,7 +43,8 @@ public class QueryPlanner {
         }
 
         // handle hidden condition
-        int conIdx = findAndUpdateCondition(body);
+        int conIdx = -1;
+        findAndUpdateCondition(body, conIdx);
         // 1. create the scan operator
         Atom relationalAtom = body.get(0);
         if (relationalAtom instanceof RelationalAtom) {
@@ -143,31 +144,72 @@ public class QueryPlanner {
      * @param body query body to be modified
      * @return first condition in the body of the query, else -1
      */
-    public static int findAndUpdateCondition(List<Atom> body) {
-        HashMap<String, Integer> definedVariables = getDefinedVariables(body);
+    public static int findAndUpdateCondition(List<Atom> body, int conIdx) {
+        HashMap<String, Integer> preDefVariables = getDefinedVariables(body);
+        HashMap<String, HashSet> varToJoinVarIdx = initVarToJoinVarIdx(preDefVariables);
         Random ranObj = new Random();
-        int conditionStartIdx = -1;
+        /*  workflow
+        potential optimization: build a table for each var e.g.  'x' : {R(0), S(1), T(2)}
+            STEP1: extract hidden selection condition and add to the body, without touching join
+                e.g. R(x, 5), S(x, b), ==> R(x, y), S(x, b), y=5
+            STEP2: extract join condition and add to the body,
+                e.g.  R(x, y), S(a, b), y=5 ==> R(x, y), S(a, b), y=5, x=a
+
+            STEP3: create a hashmap to store the indices of relational atom TO a list of ONLY selection condition
+            so that the selection condition can be handle first before join( by creating a child selection operator)
+
+            STEP4: create a hashmap to store the indices of relational atom TO a list of ONLY join condition
+            the size of hashmap is num(RelationalAtoms) - 1, because the last relational atom does join with right
+         */
+
+        // STEP1 AND 2: extract hidden SELECTION and JOIN conditions to the body
         for (int i = 0; i < body.size(); i++) {
             Atom atom = body.get(i);
             if (atom instanceof RelationalAtom) {
-                addHiddenSelectionConditions(body, ranObj, definedVariables, i, atom);
+                // STEP1 extract selection condition; STEP2 extract join condition
+                if (addImpliedConditions(body, ranObj, preDefVariables, i, atom, varToJoinVarIdx) && conIdx == 0) {
+                    conIdx = i;
+                }
             }
             if (atom instanceof ComparisonAtom) {
-                conditionStartIdx = i;
+                conIdx = i;
                 break;
             }
         }
-        // create a hashmap to store the index of relational atom  TO a list of ONLY Selection condition
+
+        // STEP3: create a hashmap to store the indices of relational atom TO a list of ONLY Selection condition
         // so that the selection condition can be handle first before join( by creating a child selection operator)
         // e.g. Q(...) :- R(x, 5), R(7, y)  --->  R(x, a), R(b, y), a = 5, b = 7
-        //      return  {0: [2, 3], 1: [2,3] }, since  2 is "a=5", 3 is "b=7"
+        //      return  {x: [2, 3], 1: [2,3] }, since  2 is "a=5", 3 is "b=7"
 
-        // extract join condition from the relational atoms, and add them to the body
-        // also expand the selection condition if there is any
-        // e.g. Q(...) :- R(x, y), S(x, z), x=3  ---> Q(...) :- R(x, y), S(x1, z), x=3, y=z, x=x1, x1=3
+        createSelectionConditionMap(body, conIdx, varToJoinVarIdx);
+
+        // STEP4: create a hashmap to store the indices of relational atom TO a list of ONLY join condition
+        createJoinConditionMap(body, conIdx, varToJoinVarIdx);
 
         return -1;
     }
+
+    private static void createJoinConditionMap(List<Atom> body, int conIdx, HashMap<String, HashSet> varToJoinVarIdx) {
+    }
+
+    private static void createSelectionConditionMap(List<Atom> body, int conIdx, HashMap<String, HashSet> varToJoinVarIdx) {
+    }
+
+    /**
+     * Initialize the varToJoinVarIdx hashmap
+     * by adding all the variables into the hashmap, which mapping to an empty list
+     */
+    public static HashMap<String, HashSet> initVarToJoinVarIdx(HashMap<String, Integer> definedVariables) {
+        HashMap<String, HashSet> varToJoinVarIdx = new HashMap<>();
+        // Iterate through all the keys in definedVariables
+        for (String key : definedVariables.keySet()) {
+            // Add an empty ArrayList<Integer> for each key
+            varToJoinVarIdx.put(key, new HashSet<>());
+        }
+        return varToJoinVarIdx;
+    }
+
 
     /**
      * Update body if there is hidden condition in the relational atom (e.g. R(x, 5))
@@ -175,44 +217,48 @@ public class QueryPlanner {
      * and adding new condition to the body (e.g. y = 5)
      * e.g. Q() :- R(x, 5)    --->  Q() :- R(x, y), y = 5      and return true
      *
-     * @param body             query body to be modified
-     * @param ranObj           random object
-     * @param definedVariables all defined variables by user
-     * @param i                index of the relational atom in the body
-     * @param atom             the relational atom to be modified
+     * @param body       query body to be modified
+     * @param ranObj     random object
+     * @param preDefVars all pre-defined variables (in the query) by user
+     * @param i          index of the relational atom in the body
+     * @param atom       the relational atom to be modified
      * @return true if the relational atom is modified, false otherwise
      */
-    public static Boolean addHiddenSelectionConditions(List<Atom> body, Random ranObj, HashMap<String, Integer> definedVariables, int i, Atom atom) {
+    public static Boolean addImpliedConditions(List<Atom> body, Random ranObj,
+                                               HashMap<String, Integer> preDefVars, int i, Atom atom,
+                                               HashMap<String, HashSet> preDefVarToJoinedVarMap) {
         RelationalAtom relationalAtom = (RelationalAtom) atom;
         Boolean added = false;
         List<Term> terms = relationalAtom.getTerms();
         for (int j = 0; j < terms.size(); j++) {
             Term term = terms.get(j);
             //either constant or variable that has been seen before
-            if ((term instanceof Constant) || definedVariables.get(term.toString()) == 0) {
-                // create a new var ( unseen in definedVariables)
+//            if (term instanceof Constant) {
+            if ((term instanceof Constant) || preDefVars.get(term.toString()) == 0) {
+                // create a new var ( unseen in preDefVars)
                 String newVar = "";
                 do {
                     newVar = ranObj.nextInt() + "";
-                } while (definedVariables.get(newVar) != null);
-                definedVariables.put(newVar, 0);
-                // update the term in the relational atom e.g. (x, 5) ---> (x, y)
-                relationalAtom.setTerm(j, new Variable(newVar));
-                Term newTerm;
-                if (term instanceof Constant) {// create a new constant to put into the added condition
-                    newTerm = term instanceof StringConstant
-                            ? new StringConstant(((StringConstant) term).getValue())
-                            : new IntegerConstant(((IntegerConstant) term).getValue());
-                } else {//if (term instanceof Variable) {
-                    newTerm = new Variable(term.toString());// create a new constant to put into the added condition
+                } while (preDefVars.get(newVar) != null);
+                // add the new var to the preDefVarToJoinedVarMap since we need this for adding join condition later
+                if (preDefVars.get(term.toString()) == 0) { //0 == has been seen, which is implies a joint condition
+                    preDefVarToJoinedVarMap.get(term.toString()).add(i); // TODO:check missing key
                 }
-                // add the new condition to the body e.g. R(x, 5) :- R(x, 5), y = 5
-                body.add(new ComparisonAtom(new Variable(newVar), newTerm, ComparisonOperator.EQ));
+                preDefVars.put(newVar, 0);
+                // update the term in the relational atom e.g. (x, 5) ---> (x, y) or (x,z) ---> (x,z')
+                relationalAtom.setTerm(j, new Variable(newVar));
+                Term copiedTerm = copyTerm(term);
+                // add the new condition to the body e.g. R(x, 5) ---> R(x, y), y = 5
+                body.add(new ComparisonAtom(new Variable(newVar), copiedTerm, ComparisonOperator.EQ));
                 added = true;          // update the changed status
             }
         }
-        body.set(i, relationalAtom); // update in the body e.g. R(x, 5) ---> R(x, y)
+        if (added) {
+            body.set(i, relationalAtom); // update in the body e.g. R(x, 5) ---> R(x, y)
+        }
         return added;
     }
+
+
 }
 
