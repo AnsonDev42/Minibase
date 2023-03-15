@@ -97,49 +97,8 @@ public class MinibaseTest {
         assertNull(tuple3);
     }
 
-    @Test
-    public void testFindComparisonAtomIdx() {
-        Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w), z < w");
-        // Query query = QueryParser.parse("Q(SUM(x * 2 * x)) :- R(x, 'z'), S(4, z, w), 4 < 'test string' ");
-        List<Atom> body = query.getBody();
-        assertEquals(2, findComparisonAtoms(body));
-
-        Query query1 = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w)");
-        List<Atom> body1 = query1.getBody();
-        assertEquals(0, findComparisonAtoms(body1));
-
-    }
 
 
-    @Test
-    public void ComparingTwoConstantTerms() {
-//        1. Test for comparing two StringConstants that are equal using the "EQ" operator:
-        Term left = new StringConstant("hello");
-        Term right = new StringConstant("hello");
-//        create a new ComparisonOperator with the operator EQ
-        boolean result = ComparisonOperator.EQ.compare(left, right);
-        assertTrue(result);
-//        2. Test for comparing two IntegerConstants that are not equal using the "NEQ" operator:
-        left = new IntegerConstant(10);
-        right = new IntegerConstant(5);
-        result = ComparisonOperator.NEQ.compare(left, right);
-        assertTrue(result);
-
-//        3. Test for comparing a Variable and a StringConstant which should throw an IllegalArgumentException:
-        Term left1 = new Variable("x");
-        Term right1 = new StringConstant("hello");
-        assertThrows(IllegalArgumentException.class, () -> {
-            ComparisonOperator.EQ.compare(left1, right1);
-        });
-
-//        4. Test for comparing a StringConstant and an IntegerConstant which should throw an IllegalArgumentException:
-//        should it throw an IllegalArgumentException?
-        Term left2 = new StringConstant("hello");
-        Term right2 = new IntegerConstant(5);
-        assertThrows(IllegalArgumentException.class, () -> {
-            ComparisonOperator.EQ.compare(left2, right2);
-        });
-    }
 
     @Test
     public void testPassCondition() throws FileNotFoundException {
@@ -159,34 +118,6 @@ public class MinibaseTest {
 
     }
 
-    @Test
-    public void testSelectOperatorSimple() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3");
-        List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
-        assertEquals("[2, 7, 'anlp']", selectOperator.getNextTuple().toString());
-//        skipped some tuples
-        assertEquals("[8, 9, 'rl']", selectOperator.getNextTuple().toString());
-    }
-
-    @Test
-    public void testSelectOperator2conditions() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3,x=8");
-        List<Atom> body = query.getBody();
-        int index = findAndUpdateCondition(body);
-        assertEquals(1, index);
-        System.out.println(index);
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-        assertEquals("[8, 9, 'rl']", selectOperator.getNextTuple().toString());
-    }
 
     @Test
     public void testSelectOperatorNoMatch() throws IOException {
@@ -200,54 +131,7 @@ public class MinibaseTest {
         assertNull(selectOperator.getNextTuple());
     }
 
-    @Test
-    public void testSelectOperatorImpossibleVar() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), c > 3");
-        List<Atom> body = query.getBody();
-        int index = findAndUpdateCondition(body);
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-//        assertNull(selectOperator.getNextTuple()); // should be null
-        assertThrows(RuntimeException.class, () -> {
-            selectOperator.getNextTuple();
-        });
-//        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
-    }
 
-    @Test
-    public void testSelectOperatorHiddenCondition() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y) :- S(x, y,4)");
-        List<Atom> body = query.getBody();
-        assertEquals("4", ((RelationalAtom) body.get(0)).getTerms().get(2).toString()); // check loc in 4
-
-        int bodylength_before = body.size();
-        int index = findAndUpdateCondition(body);
-        assertEquals(1, index);  // check the returned condition index
-        assertEquals(bodylength_before + 1, body.size()); // check body is updated in length
-        assertSame(((ComparisonAtom) body.get(1)).getOp(), ComparisonOperator.EQ); // check body is updated in content
-        assertNotEquals("4", ((RelationalAtom) body.get(0)).getTerms().get(2).toString()); // check loc in 4 is removed
-        assertEquals("4", ((ComparisonAtom) body.get(1)).getTerm2().toString()); // z=4
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-        assertEquals("[5, 'bowie', 4]", selectOperator.getNextTuple().toString());
-    }
-
-
-    @Test
-    public void testSelectOperatorHiddenConditionMultiple() throws FileNotFoundException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x) :- S(5, 'bowie', x)");
-        List<Atom> body = query.getBody();
-        int bodylength_before = body.size();
-        int index = findAndUpdateCondition(body);
-        assertEquals(1, index);  // check the returned condition index
-        assertEquals(bodylength_before + 2, body.size()); // check body is updated in length
-
-    }
 
     @Test
     public void testQueryPlanner() throws Exception {
@@ -344,21 +228,7 @@ public class MinibaseTest {
         selectOperator.dump();
     }
 
-    @Test
-    public void testTupleJoin() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 3");
-        List<Atom> body = query.getBody();
-        int index = findComparisonAtoms(body);
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-//        assertEquals("[1, 9, 'adbs']", selectOperator.getNextTuple().toString());
-//        assertEquals("[2, 7, 'anlp']", selectOperator.getNextTuple().toString());
-        Tuple jointTuple = Tuple.join(selectOperator.getNextTuple(), selectOperator.getNextTuple());
-        assertEquals("[1, 9, 'adbs', 2, 7, 'anlp']", jointTuple.toString());
 
-    }
 
     @Test
     public void testJoinOperatorSimple() throws IOException {

@@ -45,6 +45,9 @@ public class QueryPlanner {
         // handle hidden condition
         int conIdx = 0;
         conIdx = findAndUpdateCondition(body);
+//        return null;
+
+
         // 1. create the scan operator
         Atom relationalAtom = body.get(0);
         if (relationalAtom instanceof RelationalAtom) {
@@ -193,9 +196,9 @@ public class QueryPlanner {
      *
      * @param body   query body
      * @param conIdx
-     * @return a hashmap to store the indices of relational atom TO a list of ONLY Selection condition
+     * @returna a list of two maps, map1 is the selection condition map, map2 is the join condition map
      */
-    private static ArrayList createTwoConMap(List<Atom> body, int conIdx) {
+    public static ArrayList createTwoConMap(List<Atom> body, int conIdx) {
         HashMap<Integer, HashSet> rToSelConIdx = new HashMap<>();
         HashMap<Integer, HashSet> rToJoinConIdx = new HashMap<>();
         ArrayList res = new ArrayList();
@@ -205,17 +208,20 @@ public class QueryPlanner {
         for (int ri = 0; ri < conIdx; ri++) {
             Atom atom = body.get(ri);
             RelationalAtom relAtom = (RelationalAtom) atom;
-            // create a set store all the variables in the relational atom
             HashSet<String> varInRelAtom = relAtom.getVarsNames();
+            rToSelConIdx.put(ri, new HashSet<>());
+            rToJoinConIdx.put(ri, new HashSet<>());
+            // create a set store all the variables in the relational atom
             //find the variables in the relational atom that is also in the join condition
             for (int ci = conIdx; ci < body.size(); ci++) {
-                Atom innerAtom = body.get(ci);
-                ComparisonAtom compAtom = (ComparisonAtom) innerAtom;  // if this wrong then conIdx wrong
-                if (varInRelAtom.contains(compAtom.getTerm1().toString())) {
-                    if (compAtom.getTerm2() instanceof Constant) {
+                ComparisonAtom innerCompAtom = (ComparisonAtom) body.get(ci);// if this wrong then conIdx wrong
+                if (varInRelAtom.contains(innerCompAtom.getTerm1().toString())) {
+                    if (innerCompAtom.getTerm2() instanceof Constant) {
                         rToSelConIdx.get(ri).add(ci);
-                    } else { // if the second term is a variable
+                        System.out.println("selection condition: " + innerCompAtom);
+                    } else if (innerCompAtom.getTerm2() instanceof Variable) { // if the second term is a variable
                         rToJoinConIdx.get(ri).add(ci);
+                        System.out.println("join condition: " + innerCompAtom);
                     }
                 }
             }
@@ -296,13 +302,16 @@ public class QueryPlanner {
                 // add the hidden con to body e.g.  "y = 5"
                 body.add(new ComparisonAtom(new Variable(newVar), copyTerm(term), ComparisonOperator.EQ));
                 added = true;          // update the changed status
-            } else if (preDefVars.get(term.toString()) != null) { // if the term is a repeated variable
+            } else if (preDefVars.get(term.toString()) != null) { // if the term is repeated so far
                 // update the term in the relational atom e.g. (x,z) ---> (x,z'), z=z'
                 if (preDefVars.get(term.toString()) == 0) {
                     preDefVarToJoinedVarsMap.get(term.toString()).add(new Variable(newVar));
                     relationalAtom.setTerm(j, new Variable(newVar));
                     body.add(new ComparisonAtom(term, new Variable(newVar), ComparisonOperator.EQ));
                     added = true;          // update the changed status
+                } else {
+                    preDefVars.remove(term.toString());
+                    preDefVars.put(term.toString(), 0);
                 }
             }
         }
