@@ -1,8 +1,6 @@
 package ed.inf.adbs.minibase.base;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -88,18 +86,6 @@ public class QueryPlanner {
     }
 
 
-//    public static void RunQueryPlan(Query query) throws Exception {
-//        HashMap<String, Operator> planOperatorMap = buildQueryPlan(query);
-//        Operator operator = planOperatorMap.get("project");
-//        if (operator == null) {
-//            operator = planOperatorMap.get("select");
-//            if (operator == null) {
-//                operator = planOperatorMap.get("scan");
-//            }
-//        }
-//        operator.dump();
-//    }
-
     /**
      * This function checks if the query is correct with respect to the schema
      *
@@ -160,25 +146,26 @@ public class QueryPlanner {
     public static int findAndUpdateCondition(List<Atom> body) {
         HashMap<String, Integer> definedVariables = getDefinedVariables(body);
         Random ranObj = new Random();
-
+        int conditionStartIdx = -1;
         for (int i = 0; i < body.size(); i++) {
             Atom atom = body.get(i);
             if (atom instanceof RelationalAtom) {
-                addVarCondition(body, ranObj, definedVariables, i, atom);
+                addHiddenSelectionConditions(body, ranObj, definedVariables, i, atom);
             }
             if (atom instanceof ComparisonAtom) {
+                conditionStartIdx = i;
                 break;
             }
         }
-        // find the first condition in the modified body
-        for (int i = 0; i < body.size(); i++) {
-            if (body.get(i) instanceof ComparisonAtom) {
-                return i;
-            }
-        }
+        // create a hashmap to store the index of relational atom  TO a list of ONLY Selection condition
+        // so that the selection condition can be handle first before join( by creating a child selection operator)
+        // e.g. Q(...) :- R(x, 5), R(7, y)  --->  R(x, a), R(b, y), a = 5, b = 7
+        //      return  {0: [2, 3], 1: [2,3] }, since  2 is "a=5", 3 is "b=7"
 
+        // extract join condition from the relational atoms, and add them to the body
+        // also expand the selection condition if there is any
+        // e.g. Q(...) :- R(x, y), S(x, z), x=3  ---> Q(...) :- R(x, y), S(x1, z), x=3, y=z, x=x1, x1=3
 
-        // build relational atom index in the body to
         return -1;
     }
 
@@ -195,7 +182,7 @@ public class QueryPlanner {
      * @param atom             the relational atom to be modified
      * @return true if the relational atom is modified, false otherwise
      */
-    public static Boolean addVarCondition(List<Atom> body, Random ranObj, HashMap<String, Integer> definedVariables, int i, Atom atom) {
+    public static Boolean addHiddenSelectionConditions(List<Atom> body, Random ranObj, HashMap<String, Integer> definedVariables, int i, Atom atom) {
         RelationalAtom relationalAtom = (RelationalAtom) atom;
         Boolean added = false;
         List<Term> terms = relationalAtom.getTerms();

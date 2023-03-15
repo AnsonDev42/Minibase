@@ -50,7 +50,6 @@ public class JoinOperator extends Operator {
      * @return the joined tuple
      */
     public Tuple join(Tuple leftTuple, Tuple rightTuple) {
-        //TODO: implement join function
         if (!passConditions(leftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
             return null;
         }
