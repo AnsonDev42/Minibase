@@ -26,6 +26,53 @@ public class QueryPlanner {
         }
     }
 
+
+    public static HashMap<String, Operator> buildQueryPlan_withJoin(Query query) throws Exception {
+        HashMap<String, Operator> results = new HashMap<>();
+        Head head = query.getHead();
+        List<Atom> body = query.getBody();
+        if (body.size() == 0) {
+            throw new Exception("Query body is empty");
+        }
+
+        // handle hidden condition
+        int conIdx = 0;
+        conIdx = findAndUpdateCondition(body);
+        ArrayList conMaps = createTwoConMap(body, conIdx);
+        HashMap<Integer, HashSet> selMap = (HashMap) conMaps.get(0);
+        HashMap<Integer, HashSet> joinMap = (HashMap) conMaps.get(1);
+
+        // execute the body with deep left join
+        Operator rootOperator = null;
+        Operator leftChild = null;
+        Operator rightChild = null;
+        for (int i = 0; i < conIdx - 1; i++) {
+            RelationalAtom currRelAtom = (RelationalAtom) body.get(i);
+            RelationalAtom nextRelAtom = (RelationalAtom) body.get(i + 1);
+            Operator parentOperator = null;
+            if (i == 0) {
+                if (selMap.get(i).size() > 0) {
+                    leftChild = new SelectOperator(currRelAtom, (List<ComparisonAtom>) selMap.get(i)); // TODO: fix here
+                } else {
+                    leftChild = new ScanOperator(currRelAtom.getName());
+                }
+                rightChild = new ScanOperator(nextRelAtom.getName()); //TODO: might be SelectOperator
+            } else {
+                leftChild = new JoinOperator(leftChild, rightChild, Arrays.asList(currRelAtom, nextRelAtom), (List<ComparisonAtom>) joinMap.get(i));
+                rightChild = new ScanOperator(nextRelAtom.getName());
+                parentOperator = new JoinOperator(leftChild, rightChild, Arrays.asList(currRelAtom, nextRelAtom), (List<ComparisonAtom>) joinMap.get(i));
+
+
+            }
+
+
+            break;
+        }
+
+        return null;
+    }
+
+
     /**
      * Build the query plan for the given query
      *
@@ -179,11 +226,11 @@ public class QueryPlanner {
             }
         }
 
-        // STEP3: create both selection and join condition map for EACH relational atom
-        ArrayList twoConMap = createTwoConMap(body, conIdx);
-        HashMap<Integer, HashSet> rToSelConIdx = (HashMap<Integer, HashSet>) twoConMap.get(0);
-        HashMap<Integer, HashSet> rToJoinConIdx = (HashMap<Integer, HashSet>) twoConMap.get(1);
-
+        // STEP3: create both selection and join condition map for EACH relational atom: in other functions
+//        ArrayList twoConMap = createTwoConMap(body, conIdx);
+//        HashMap<Integer, HashSet> rToSelConIdx = (HashMap<Integer, HashSet>) twoConMap.get(0);
+//        HashMap<Integer, HashSet> rToJoinConIdx = (HashMap<Integer, HashSet>) twoConMap.get(1);
+//
 
         return conIdx;
     }
@@ -321,7 +368,7 @@ public class QueryPlanner {
         return added;
     }
 
-    //TODO: create a new var ( unseen in preDefVars) using following code
+    //TODO: create a new var ( unseen in preDefVars)
     public static String createNewVar(HashMap<String, Integer> preDefVars, Random ranObj) {
         String newVar = "";
         do {
