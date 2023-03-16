@@ -24,7 +24,6 @@ public class ScanOperator extends Operator {
         this.reader.mark(0);
         this.fieldTypes = Catalog.getInstance(null).getSchema(relationName);
         currentLocation = 0;
-
     }
 
     /**

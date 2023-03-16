@@ -1,5 +1,6 @@
 package ed.inf.adbs.minibase.base;
 
+import java.io.IOException;
 import java.util.*;
 
 import static ed.inf.adbs.minibase.Utils.copyTerm;
@@ -38,38 +39,43 @@ public class QueryPlanner {
         // handle hidden condition
         int conIdx = 0;
         conIdx = findAndUpdateCondition(body);
-        ArrayList conMaps = createTwoConMap(body, conIdx);
-        HashMap<Integer, HashSet> selMap = (HashMap) conMaps.get(0);
-        HashMap<Integer, HashSet> joinMap = (HashMap) conMaps.get(1);
 
-        // execute the body with deep left join
-        Operator rootOperator = null;
-        Operator leftChild = null;
-        Operator rightChild = null;
-        for (int i = 0; i < conIdx - 1; i++) {
-            RelationalAtom currRelAtom = (RelationalAtom) body.get(i);
-            RelationalAtom nextRelAtom = (RelationalAtom) body.get(i + 1);
-            Operator parentOperator = null;
-            if (i == 0) {
-                if (selMap.get(i).size() > 0) {
-                    leftChild = new SelectOperator(currRelAtom, (List<ComparisonAtom>) selMap.get(i)); // TODO: fix here
-                } else {
-                    leftChild = new ScanOperator(currRelAtom.getName());
-                }
-                rightChild = new ScanOperator(nextRelAtom.getName()); //TODO: might be SelectOperator
-            } else {
-                leftChild = new JoinOperator(leftChild, rightChild, Arrays.asList(currRelAtom, nextRelAtom), (List<ComparisonAtom>) joinMap.get(i));
-                rightChild = new ScanOperator(nextRelAtom.getName());
-                parentOperator = new JoinOperator(leftChild, rightChild, Arrays.asList(currRelAtom, nextRelAtom), (List<ComparisonAtom>) joinMap.get(i));
-
-
-            }
-
-
-            break;
-        }
 
         return null;
+    }
+
+
+    public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx) throws IOException {
+        ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
+        HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
+        HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
+
+        // Create initial operators
+        List<Operator> operators = new ArrayList<>();
+        for (int i = 0; i < conIdx; i++) {
+            RelationalAtom relAtom = (RelationalAtom) body.get(i);
+            if (selMap.get(i).isEmpty()) {
+                operators.add(new ScanOperator(relAtom.getName()));
+            } else {
+                operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
+            }
+        }
+
+        // Create deep left join tree
+        Operator root = operators.get(0);
+        for (int i = 1; i < conIdx; i++) {
+            // TODO: seems joinCondition should be a hashMap for each join Relation?
+            List<ComparisonAtom> joinConditions = new ArrayList<>(joinMap.get(i - 1));
+            joinConditions.addAll(joinMap.get(i));
+
+            Operator rightChild = operators.get(i);
+            List<Atom> joinVariables = Arrays.asList(body.get(i - 1), body.get(i));
+            if (rightChild instanceof JoinOperator) {
+                throw new IllegalStateException("Right child should not be a JoinOperator");
+            }
+            root = new JoinOperator(root, rightChild, joinVariables, joinConditions);
+        }
+        return root;
     }
 
 
@@ -245,66 +251,39 @@ public class QueryPlanner {
      * @param conIdx
      * @returna a list of two maps, map1 is the selection condition map, map2 is the join condition map
      */
-    public static ArrayList createTwoConMap(List<Atom> body, int conIdx) {
-        HashMap<Integer, HashSet> rToSelConIdx = new HashMap<>();
-        HashMap<Integer, HashSet> rToJoinConIdx = new HashMap<>();
-        ArrayList res = new ArrayList();
-        res.add(rToSelConIdx);
-        res.add(rToJoinConIdx);
-
+    public static ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> createTwoConMap(List<Atom> body, int conIdx) {
+        HashMap<Integer, HashSet<ComparisonAtom>> selMap = new HashMap<>();
+        HashMap<Integer, HashSet<ComparisonAtom>> joinMap = new HashMap<>();
+        // outer loop all conditions
         for (int ri = 0; ri < conIdx; ri++) {
             Atom atom = body.get(ri);
             RelationalAtom relAtom = (RelationalAtom) atom;
             HashSet<String> varInRelAtom = relAtom.getVarsNames();
-            rToSelConIdx.put(ri, new HashSet<>());
-            rToJoinConIdx.put(ri, new HashSet<>());
+            selMap.put(ri, new HashSet<>());
+            joinMap.put(ri, new HashSet<>());
             // create a set store all the variables in the relational atom
             //find the variables in the relational atom that is also in the join condition
             for (int ci = conIdx; ci < body.size(); ci++) {
-                ComparisonAtom innerCompAtom = (ComparisonAtom) body.get(ci);// if this wrong then conIdx wrong
-                if (varInRelAtom.contains(innerCompAtom.getTerm1().toString())) {
-                    if (innerCompAtom.getTerm2() instanceof Constant) {
-                        rToSelConIdx.get(ri).add(ci);
-                        System.out.println("selection condition: " + innerCompAtom);
-                    } else if (innerCompAtom.getTerm2() instanceof Variable) { // if the second term is a variable
-                        rToJoinConIdx.get(ri).add(ci);
-                        System.out.println("join condition: " + innerCompAtom);
+                ComparisonAtom condition = (ComparisonAtom) body.get(ci);// if this wrong then conIdx wrong
+                if (varInRelAtom.contains(condition.getTerm1().toString())) {
+                    if (condition.getTerm2() instanceof Constant) {
+                        selMap.get(ri).add(condition);
+                        System.out.println("selection condition: " + condition);
+                    } else if (condition.getTerm2() instanceof Variable) { // if the second term is a variable
+                        joinMap.get(ri).add(condition);
+                        System.out.println("join condition: " + condition);
                     }
                 }
             }
         }
-        return res;
+
+        ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = new ArrayList<>();
+        conMaps.add(selMap);
+        conMaps.add(joinMap);
+        System.out.println("got con maps");
+        return conMaps;
     }
 
-
-    /**
-     * STEP4: create a hashmap to store the indices of relational atom TO a list of ONLY join condition
-     * this is fast since we already got varToJoinVarIdx in STEP2,
-     *
-     * @param body
-     * @param conIdx
-     * @param varToJoinVarIdx
-     * @return
-     */
-    private static HashMap<Integer, HashSet> createJoinConditionMap(List<Atom> body, int conIdx, HashMap<String, HashSet> varToJoinVarIdx) {
-        HashMap<Integer, HashSet> relAtomToJoinConIdx = new HashMap<>();
-        for (int i = 0; i < conIdx; i++) {
-            Atom atom = body.get(i);
-            RelationalAtom relAtom = (RelationalAtom) atom;
-            // create a set store all the variables in the relational atom
-            HashSet<String> varInRelAtom = relAtom.getVarsNames();
-            for (String var : varInRelAtom) {
-                HashSet<Integer> joinVarIdx = varToJoinVarIdx.get(var);
-                if (joinVarIdx.size() > 0) {
-                    for (int joinIdx : joinVarIdx) {
-                        relAtomToJoinConIdx.get(joinIdx).add(i);
-                    }
-                }
-            }
-
-        }
-        return relAtomToJoinConIdx;
-    }
 
     /**
      * Initialize the varToJoinVarIdx hashmap

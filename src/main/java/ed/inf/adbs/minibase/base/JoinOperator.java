@@ -26,6 +26,14 @@ public class JoinOperator extends Operator {
         this.rightTermToIndexMap = createTermToIndexMap((RelationalAtom) variables.get(1));
     }
 
+    public Operator getLeftChild() {
+        return leftChild;
+    }
+
+    public Operator getRightChild() {
+        return rightChild;
+    }
+
     @Override
     public Tuple getNextTuple() throws IOException {
         Tuple leftTuple;
@@ -40,20 +48,6 @@ public class JoinOperator extends Operator {
             }
         }
         return null;
-    }
-
-    /**
-     * Join two tuples if they satisfy the join conditions
-     *
-     * @param leftTuple  the left tuple
-     * @param rightTuple the right tuple
-     * @return the joined tuple
-     */
-    public Tuple join(Tuple leftTuple, Tuple rightTuple) {
-        if (!passConditions(leftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
-            return null;
-        }
-        return Tuple.join(leftTuple, rightTuple);
     }
 
 

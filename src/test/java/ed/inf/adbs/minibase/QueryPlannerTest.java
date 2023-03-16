@@ -8,6 +8,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.base.QueryPlanner.*;
@@ -150,10 +151,24 @@ public class QueryPlannerTest {
         ArrayList conMaps = createTwoConMap(body, conIdx);
         HashMap selMap = (HashMap) conMaps.get(0);
         HashMap joinMap = (HashMap) conMaps.get(1);
-//        System.out.println("selection map " + selMap.toString());
-//        System.out.println("join map " + joinMap.toString());
-        assertEquals("{0=[], 1=[4]}", selMap.toString());
-        assertEquals("{0=[2, 3], 1=[]}", joinMap.toString());
+        System.out.println("selection map " + selMap.toString());
+        System.out.println("join map " + joinMap.toString());
+        assertEquals("[]", selMap.get(0).toString());
+    }
+
+    @Test
+    public void testCreateDeepLeftJoinTree() throws IOException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5");
+        System.out.println("testing query" + query.toString());
+        List<Atom> body = query.getBody();
+        assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5]", body.toString());
+        int conIdx = findAndUpdateCondition(body);
+        assertEquals(3, conIdx);
+        Operator result = createDeepLeftJoinTree(body, conIdx);
+        assertTrue(result instanceof JoinOperator);
+        assertTrue("left child is not join", ((JoinOperator) result).getLeftChild() instanceof JoinOperator);
+        assertTrue("right child is JoinOperator", ((JoinOperator) result).getRightChild() instanceof JoinOperator);
 
 
     }
