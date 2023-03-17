@@ -1,6 +1,5 @@
 package ed.inf.adbs.minibase.base;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -28,7 +27,7 @@ public class SelectOperator extends Operator {
     public String getRelationName() {
         return this.relationalAtom.getName();
     }
-    
+
 
     @Override
     public Tuple getNextTuple() {

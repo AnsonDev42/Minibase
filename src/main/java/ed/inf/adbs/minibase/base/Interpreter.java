@@ -15,7 +15,7 @@ public class Interpreter {
         query = QueryParser.parse(Paths.get(query_file));
         queryPlanner = new QueryPlanner(query);
         Operator rootOperator = queryPlanner.getOperator();
-        rootOperator.dump();
+        rootOperator.dump("output.txt");
 
     }
 

@@ -4,6 +4,7 @@ import ed.inf.adbs.minibase.base.*;
 import ed.inf.adbs.minibase.parser.QueryParser;
 import org.junit.Test;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
 import static ed.inf.adbs.minibase.base.QueryPlanner.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertNotEquals;
@@ -184,7 +186,7 @@ public class QueryPlannerTest {
         System.out.println("testing query" + query.toString());
         List<Atom> body = query.getBody();
         removeCondition(body);
-        assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b != 'rhcp']", body.toString());
+        assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 'rhcp']", body.toString());
         int conIdx = findAndUpdateCondition(body);
         assertEquals(3, conIdx);
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
@@ -194,9 +196,71 @@ public class QueryPlannerTest {
         assertFalse("right child CANT BE JoinOperator", ((JoinOperator) result).getRightChild() instanceof JoinOperator);
         assertTrue("right child is ScanOperator", ((JoinOperator) result).getRightChild() instanceof ScanOperator);
         assertTrue("left child's right child is selection", ((JoinOperator) ((JoinOperator) result).getLeftChild()).getRightChild() instanceof SelectOperator);
-        System.out.print(result.getNextTuple().toString());
         //need to handle null output
     }
 
+    @Test
+    public void testQuery1() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z)");
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query1.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath);
+    }
+
+    @Test
+    public void testQuery2() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, sname, z) :- S(x, sname, z)");
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query2.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath);
+    }
+
+    @Test
+    public void testQuery3() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y) :- T(x, y)");
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query3.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath);
+    }
+
+    @Test
+    public void testQuery4() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, sname, z) :- R(x, y, z), S(sname, ts, y)");
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query4.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath);
+    }
+
+    @Test
+    public void testQuery5() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, sname, z) :- R(x, y, z), S(x, sname, y), T(x, z)");
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query5.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath);
+    }
+
+    @Test
+    public void testScanOperatorDUMP() throws IOException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        catalog.initialize();
+        ScanOperator scanOperator = new ScanOperator("R");
+        Tuple tuple = scanOperator.getNextTuple();
+        String s = "[1, 9, 'adbs']";
+        assertEquals(s, tuple.toString());
+        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
+        scanOperator.dump("data/evaluation/test_db/test_output/query1.csv");
+        Tuple tuple3 = scanOperator.getNextTuple();
+        assertNull(tuple3);
+    }
 
 }

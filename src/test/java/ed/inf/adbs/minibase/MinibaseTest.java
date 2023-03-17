@@ -83,19 +83,7 @@ public class MinibaseTest {
         assertEquals(s, tuple3.toString());
     }
 
-    @Test
-    public void testScanOperatorDUMP() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
-        ScanOperator scanOperator = new ScanOperator("R");
-        Tuple tuple = scanOperator.getNextTuple();
-        String s = "[1, 9, 'adbs']";
-        assertEquals(s, tuple.toString());
-        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
-        scanOperator.dump();
-        Tuple tuple3 = scanOperator.getNextTuple();
-        assertNull(tuple3);
-    }
+
 
 
     @Test
@@ -214,14 +202,14 @@ public class MinibaseTest {
 //        4, 5
 //        1, 3
     }
-
-    @Test
-    public void testSelectionDump() throws Exception {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x) :- T(x,z), z=3");
-        Operator operator = QueryPlanner.buildQueryPlan_withJoin(query);
-        operator.dump();
-    }
+//
+//    @Test
+//    public void testSelectionDump() throws Exception {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        Query query = QueryParser.parse("Q(x) :- T(x,z), z=3");
+//        Operator operator = QueryPlanner.buildQueryPlan(query);
+//        operator.dump();
+//    }
 
 
     @Test

@@ -1,9 +1,9 @@
 package ed.inf.adbs.minibase.parser;
 
+import ed.inf.adbs.minibase.base.*;
 import ed.inf.adbs.minibase.parser.generated.MinibaseBaseVisitor;
 import ed.inf.adbs.minibase.parser.generated.MinibaseLexer;
 import ed.inf.adbs.minibase.parser.generated.MinibaseParser;
-import ed.inf.adbs.minibase.base.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -48,9 +48,9 @@ public class QueryParser {
                     .stream()
                     .map(v -> v.accept(variableVisitor))
                     .collect(toList());
-            
+
             SumAggregate headSumAggregate = null;
-            if (ctx.head().sumagg() != null) {                
+            if (ctx.head().sumagg() != null) {
                 TermVisitor termVisitor = new TermVisitor();
                 List<Term> productTerms = ctx.head().sumagg().term()
                         .stream()

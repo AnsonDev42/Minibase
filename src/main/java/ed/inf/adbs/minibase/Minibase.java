@@ -2,11 +2,10 @@ package ed.inf.adbs.minibase;
 
 import ed.inf.adbs.minibase.base.Atom;
 import ed.inf.adbs.minibase.base.ComparisonAtom;
-import ed.inf.adbs.minibase.base.Query;
 import ed.inf.adbs.minibase.base.Head;
+import ed.inf.adbs.minibase.base.Query;
 import ed.inf.adbs.minibase.parser.QueryParser;
 
-import java.nio.file.Paths;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;

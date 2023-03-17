@@ -18,7 +18,6 @@ public class ProjectOperator extends Operator {
         this.projectedTuples = new HashSet<>();
         this.jointTupleVarToIdx = jointTupleVarToIdx;
         this.varIndexMap = createProjectionMap();
-        System.out.println("this.joinTupleVarToIdx: " + this.jointTupleVarToIdx);
     }
 
     public static Operator getChildOperator() {

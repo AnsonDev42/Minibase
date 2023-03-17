@@ -1,7 +1,5 @@
 package ed.inf.adbs.minibase.base;
 
-import java.util.Arrays;
-
 public class ComparisonAtom extends Atom {
 
     private final Term term1;

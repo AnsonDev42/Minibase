@@ -1,6 +1,5 @@
 package ed.inf.adbs.minibase.base;
 
-import javax.management.RuntimeErrorException;
 import java.io.IOException;
 import java.util.*;
 
@@ -11,7 +10,7 @@ public class QueryPlanner {
     private static Operator operator;
 
     public QueryPlanner(Query query) throws Exception {
-        operator = buildQueryPlan_withJoin(query);
+        operator = buildQueryPlan(query);
     }
 
     public Operator getOperator() {
@@ -38,7 +37,7 @@ public class QueryPlanner {
     }
 
 
-    public static Operator buildQueryPlan_withJoin(Query query) throws Exception {
+    public static Operator buildQueryPlan(Query query) throws Exception {
         Head head = query.getHead();
         List<Atom> body = query.getBody();
         if (body.size() == 0) {
@@ -112,72 +111,6 @@ public class QueryPlanner {
         }
         return root;
     }
-
-
-    /**
-     * Build the query plan for the given query
-     *
-     * @param query the query to be executed
-     * @return the query plan
-     * @throws Exception
-     */
-//    public static HashMap<String, Operator> buildQueryPlan(Query query) throws Exception {
-//
-//        HashMap<String, Operator> results = new HashMap<>();
-//        Head head = query.getHead();
-//        List<Atom> body = query.getBody();
-//        if (body.size() == 0) {
-//            throw new Exception("Query body is empty");
-//        }
-//
-//        // handle hidden condition
-//        int conIdx = 0;
-//        conIdx = findAndUpdateCondition(body);
-////        return null;
-//
-//
-//        // 1. create the scan operator
-//        Atom relationalAtom = body.get(0);
-//        if (relationalAtom instanceof RelationalAtom) {
-//            checkQueryMatchSchema((RelationalAtom) relationalAtom);
-//            String tableName = ((RelationalAtom) relationalAtom).getName();
-//            results.put("scan", new ScanOperator(tableName));
-//        } else
-//            throw new Exception("The first atom in the query body is not a relational atom");
-//
-////        2. check if it needed to select
-//        if (conIdx != 0) {
-//            List condition = body.subList(conIdx, body.size());
-//            checkQueryMatchSchema((RelationalAtom) relationalAtom);
-//            results.put("select", new SelectOperator((RelationalAtom) relationalAtom, condition));
-//            System.out.println("select added");
-//        }
-//        System.out.println("select failed added: " + conIdx);
-//
-//
-//        // check if needed to project by checking length of vars in head
-//        Boolean needProject = false;
-//        List<Variable> variables = head.getVariables();
-//        if (variables.size() != ((RelationalAtom) relationalAtom).getTerms().size()) {
-//            needProject = true;
-//        }
-//        // check if  order of variables in the head is the same as the schema e.g .Q(y,x) :- R(x,y)
-//        if (!needProject) {
-//            for (int i = 0; i < variables.size(); i++) {
-//                if (!variables.get(i).getName().equals(((RelationalAtom) relationalAtom).getTerms().get(i).toString())) {
-//                    needProject = true;
-//                    break;
-//                }
-//            }
-//        }
-//        if (needProject && conIdx != 0) {
-//            results.put("project", new ProjectOperator(results.get("select"), variables, relationalAtom));
-//        } else if (needProject && conIdx == 0) {
-//            results.put("project", new ProjectOperator(results.get("scan"), variables, relationalAtom));
-//        }
-//
-//        return results;
-//    }
 
 
     /**
