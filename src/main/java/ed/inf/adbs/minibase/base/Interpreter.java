@@ -14,7 +14,7 @@ public class Interpreter {
         this.query_file = queryFilePath;
         query = QueryParser.parse(Paths.get(query_file));
         queryPlanner = new QueryPlanner(query);
-        Operator rootOperator = queryPlanner.getRootOperator();
+        Operator rootOperator = queryPlanner.getOperator();
         rootOperator.dump();
 
     }

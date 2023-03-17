@@ -32,6 +32,17 @@ public class Utils {
     }
 
 
+    /**
+     * swap swappedCondition's term1 and term2 and operator, return a new swapped condition
+     */
+    public static ComparisonAtom swapCondition(ComparisonAtom swappedCondition){
+        Term newTerm1 = copyTerm(swappedCondition.getTerm2());
+        Term newTerm2 = copyTerm(swappedCondition.getTerm1());
+        ComparisonOperator newOp = swappedCondition.getOp().reverse();
+        return new ComparisonAtom(newTerm1, newTerm2, newOp);
+    }
+
+
 }
 
 

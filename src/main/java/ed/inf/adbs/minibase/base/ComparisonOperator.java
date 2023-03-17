@@ -33,12 +33,12 @@ public enum ComparisonOperator {
             throw new IllegalArgumentException("Cannot compare a variable, only constants");
         }
         if (left == null || right == null) {
-//            throw new IllegalArgumentException("Cannot compare a null value");
-            return false;
+            throw new IllegalArgumentException("Cannot compare a null value");
+//            return false;
         }
 //        check if left and right are the same type of constant
         if (left.getClass() != right.getClass()) {
-            throw new IllegalArgumentException("Cannot compare two different types of constants");
+            throw new IllegalArgumentException("Cannot compare two different types of constants" + left.getClass() + right.getClass() + left + right);
         }
 
         if (left instanceof StringConstant && right instanceof StringConstant) {
@@ -81,7 +81,26 @@ public enum ComparisonOperator {
             }
 
         }
-
-
     }
+
+    public ComparisonOperator reverse() {
+        switch (this) {
+            case EQ:
+                return EQ;
+            case NEQ:
+                return NEQ;
+            case GT:
+                return LT;
+            case GEQ:
+                return LEQ;
+            case LT:
+                return GT;
+            case LEQ:
+                return GEQ;
+            default:
+                throw new IllegalArgumentException("Unknown operator: " + this);
+        }
+    }
+
+
 }

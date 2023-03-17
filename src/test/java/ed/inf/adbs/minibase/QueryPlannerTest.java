@@ -157,20 +157,45 @@ public class QueryPlannerTest {
     }
 
     @Test
-    public void testCreateDeepLeftJoinTree() throws IOException {
+    public void testCreateTwoMaps() {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5");
         System.out.println("testing query" + query.toString());
         List<Atom> body = query.getBody();
+        removeCondition(body);
         assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5]", body.toString());
         int conIdx = findAndUpdateCondition(body);
         assertEquals(3, conIdx);
-        Operator result = createDeepLeftJoinTree(body, conIdx);
+        ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
+        HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
+        HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
+        System.out.println("selection map " + selMap.toString());
+        System.out.println("join map " + joinMap.toString());
+        assertEquals("[b = 5]", selMap.get(1).toString());
+        assertEquals("[y = a, x = xx]", joinMap.get(0).toString());
+        assertEquals("[y = a]", joinMap.get(1).toString());
+    }
+
+
+    @Test
+    public void testCreateDeepLeftJoinTree() throws IOException { // depth 2
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 'rhcp'");
+        System.out.println("testing query" + query.toString());
+        List<Atom> body = query.getBody();
+        removeCondition(body);
+        assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b != 'rhcp']", body.toString());
+        int conIdx = findAndUpdateCondition(body);
+        assertEquals(3, conIdx);
+        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+        Operator result = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
         assertTrue(result instanceof JoinOperator);
         assertTrue("left child is not join", ((JoinOperator) result).getLeftChild() instanceof JoinOperator);
-        assertTrue("right child is JoinOperator", ((JoinOperator) result).getRightChild() instanceof JoinOperator);
-
-
+        assertFalse("right child CANT BE JoinOperator", ((JoinOperator) result).getRightChild() instanceof JoinOperator);
+        assertTrue("right child is ScanOperator", ((JoinOperator) result).getRightChild() instanceof ScanOperator);
+        assertTrue("left child's right child is selection", ((JoinOperator) ((JoinOperator) result).getLeftChild()).getRightChild() instanceof SelectOperator);
+        System.out.print(result.getNextTuple().toString());
+        //need to handle null output
     }
 
 

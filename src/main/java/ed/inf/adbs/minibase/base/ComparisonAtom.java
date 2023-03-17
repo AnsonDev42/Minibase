@@ -33,5 +33,21 @@ public class ComparisonAtom extends Atom {
         return term1 + " " + op + " " + term2;
     }
 
+    public boolean isTwoVars() {
+        return term1 instanceof Variable && term2 instanceof Variable;
+    }
+
+    public boolean isTwoConstant() {
+        return (term1 instanceof Constant && term2 instanceof Constant);
+    }
+
+    /**
+     * return true if the two terms are both constant and the comparison is true
+     *
+     * @return
+     */
+    public boolean evalTwoConstant() {
+        return op.compare(term1, term2);
+    }
 
 }

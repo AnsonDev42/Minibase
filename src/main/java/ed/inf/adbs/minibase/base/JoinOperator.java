@@ -12,18 +12,17 @@ public class JoinOperator extends Operator {
 
     private final Operator leftChild;
     private final Operator rightChild;
-    private final List<Atom> variables;
     private final List<ComparisonAtom> joinConditions;
     private final HashMap<String, Integer> leftTermToIndexMap;
     private final HashMap<String, Integer> rightTermToIndexMap;
 
-    public JoinOperator(Operator leftChild, Operator rightChild, List variables, List joinConditions) {
+    public JoinOperator(Operator leftChild, Operator rightChild, HashMap<String, Integer> leftTermToIndexMap,
+                        RelationalAtom RightRelAtom, List joinConditions) {
         this.leftChild = leftChild;
         this.rightChild = rightChild;
-        this.variables = variables;
         this.joinConditions = joinConditions;
-        this.leftTermToIndexMap = createTermToIndexMap((RelationalAtom) variables.get(0));
-        this.rightTermToIndexMap = createTermToIndexMap((RelationalAtom) variables.get(1));
+        this.leftTermToIndexMap = leftTermToIndexMap; // its global map already, no need to create again
+        this.rightTermToIndexMap = createTermToIndexMap(RightRelAtom); // TODO: can be optimized using offset from leftTermToIndexMap
     }
 
     public Operator getLeftChild() {
@@ -42,6 +41,7 @@ public class JoinOperator extends Operator {
         while ((leftTuple = leftChild.getNextTuple()) != null) {
             rightChild.reset();
             while ((rightTuple = rightChild.getNextTuple()) != null) {
+                System.out.println("before breaking..." + leftTuple + " " + rightTuple);
                 if (passConditions(leftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
                     return Tuple.join(leftTuple, rightTuple);
                 }

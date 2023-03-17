@@ -1,79 +1,100 @@
 package ed.inf.adbs.minibase.base;
 
+import javax.management.RuntimeErrorException;
 import java.io.IOException;
 import java.util.*;
 
 import static ed.inf.adbs.minibase.Utils.copyTerm;
+import static ed.inf.adbs.minibase.Utils.swapCondition;
 
 public class QueryPlanner {
-    private final SelectOperator selectOperator;
-    private final ProjectOperator projectOperator;
-    private final ScanOperator scanOperator;
+    private final Operator operator;
 
     public QueryPlanner(Query query) throws Exception {
-        HashMap<String, Operator> planOperatorMap = buildQueryPlan(query);
-        this.scanOperator = (ScanOperator) planOperatorMap.get("scan");
-        this.selectOperator = (SelectOperator) planOperatorMap.get("select");
-        this.projectOperator = (ProjectOperator) planOperatorMap.get("project");
+        this.operator = buildQueryPlan_withJoin(query);
     }
 
-    public Operator getRootOperator() {
-        if (this.projectOperator != null) {
-            return this.projectOperator;
-        } else if (this.selectOperator != null) {
-            return this.selectOperator;
-        } else {
-            return this.scanOperator;
+    public Operator getOperator() {
+        return operator;
+    }
+
+    public static HashMap<String, Integer> createJointTupleVarToIdx(List<Atom> body, int conIdx) {
+        HashMap<String, Integer> varIndexInJoinTupleMap = new HashMap<>();
+        int index = 0;
+        for (int i = 0; i < conIdx; i++) {
+            RelationalAtom atom = (RelationalAtom) body.get(i);
+            for (Term term : atom.getTerms()) {
+                if (term instanceof Variable) {
+                    varIndexInJoinTupleMap.put(((Variable) term).getName(), index);
+                    index++;
+                }
+            }
         }
+        return varIndexInJoinTupleMap;
     }
 
 
-    public static HashMap<String, Operator> buildQueryPlan_withJoin(Query query) throws Exception {
-        HashMap<String, Operator> results = new HashMap<>();
+    public static Operator buildQueryPlan_withJoin(Query query) throws Exception {
         Head head = query.getHead();
         List<Atom> body = query.getBody();
         if (body.size() == 0) {
             throw new Exception("Query body is empty");
         }
-
+        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
+            body = new ArrayList<Atom>(); // clear all body since one condition is always false
+            //TODO: do something faster?
+        }
         // handle hidden condition
         int conIdx = 0;
         conIdx = findAndUpdateCondition(body);
-
-
-        return null;
+        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
+        if (jointTupleVarToIdx.size() < head.getVariables().size()) {
+            // add project operator
+            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+        }
+        return root;
     }
 
 
-    public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx) throws IOException {
+    public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx, HashMap<String, Integer> jointTupleVarToIdx) throws IOException {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
+//        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
 
         // Create initial operators
-        List<Operator> operators = new ArrayList<>();
+        ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
             RelationalAtom relAtom = (RelationalAtom) body.get(i);
-            if (selMap.get(i).isEmpty()) {
+            if (selMap.get(i).isEmpty() || joinMap.get(i).isEmpty()) {
                 operators.add(new ScanOperator(relAtom.getName()));
             } else {
                 operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
             }
         }
 
-        // Create deep left join tree
-        Operator root = operators.get(0);
-        for (int i = 1; i < conIdx; i++) {
-            // TODO: seems joinCondition should be a hashMap for each join Relation?
-            List<ComparisonAtom> joinConditions = new ArrayList<>(joinMap.get(i - 1));
-            joinConditions.addAll(joinMap.get(i));
 
+        // Create deep left join tree
+        
+        Operator root = operators.get(0); // just pointer
+        HashSet<ComparisonAtom> leftConditionPool = joinMap.get(0);
+        for (int i = 1; i < conIdx; i++) {
+            // create intersection of join conditions between left(joined)Tuple and right (to be joined) tuple
+            HashSet<ComparisonAtom> rightChildConditions = joinMap.get(i);
+            HashSet<ComparisonAtom> intersection = new HashSet<>(leftConditionPool);
+            intersection.retainAll(rightChildConditions);
             Operator rightChild = operators.get(i);
-            List<Atom> joinVariables = Arrays.asList(body.get(i - 1), body.get(i));
+            root = new JoinOperator(root, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(i), new ArrayList<>(intersection));
             if (rightChild instanceof JoinOperator) {
                 throw new IllegalStateException("Right child should not be a JoinOperator");
             }
-            root = new JoinOperator(root, rightChild, joinVariables, joinConditions);
+            JoinOperator jr_root = (JoinOperator) root;
+            if (jr_root.getRightChild() instanceof JoinOperator) {
+                throw new IllegalStateException("Right child should not be a JoinOperator");
+            }
+            // Update leftConditionPool
+            leftConditionPool.addAll(rightChildConditions);
         }
         return root;
     }
@@ -86,63 +107,63 @@ public class QueryPlanner {
      * @return the query plan
      * @throws Exception
      */
-    public static HashMap<String, Operator> buildQueryPlan(Query query) throws Exception {
-
-        HashMap<String, Operator> results = new HashMap<>();
-        Head head = query.getHead();
-        List<Atom> body = query.getBody();
-        if (body.size() == 0) {
-            throw new Exception("Query body is empty");
-        }
-
-        // handle hidden condition
-        int conIdx = 0;
-        conIdx = findAndUpdateCondition(body);
-//        return null;
-
-
-        // 1. create the scan operator
-        Atom relationalAtom = body.get(0);
-        if (relationalAtom instanceof RelationalAtom) {
-            checkQueryMatchSchema((RelationalAtom) relationalAtom);
-            String tableName = ((RelationalAtom) relationalAtom).getName();
-            results.put("scan", new ScanOperator(tableName));
-        } else
-            throw new Exception("The first atom in the query body is not a relational atom");
-
-//        2. check if it needed to select
-        if (conIdx != 0) {
-            List condition = body.subList(conIdx, body.size());
-            checkQueryMatchSchema((RelationalAtom) relationalAtom);
-            results.put("select", new SelectOperator((RelationalAtom) relationalAtom, condition));
-            System.out.println("select added");
-        }
-        System.out.println("select failed added: " + conIdx);
-
-
-        // check if needed to project by checking length of vars in head
-        Boolean needProject = false;
-        List<Variable> variables = head.getVariables();
-        if (variables.size() != ((RelationalAtom) relationalAtom).getTerms().size()) {
-            needProject = true;
-        }
-        // check if  order of variables in the head is the same as the schema e.g .Q(y,x) :- R(x,y)
-        if (!needProject) {
-            for (int i = 0; i < variables.size(); i++) {
-                if (!variables.get(i).getName().equals(((RelationalAtom) relationalAtom).getTerms().get(i).toString())) {
-                    needProject = true;
-                    break;
-                }
-            }
-        }
-        if (needProject && conIdx != 0) {
-            results.put("project", new ProjectOperator(results.get("select"), variables, relationalAtom));
-        } else if (needProject && conIdx == 0) {
-            results.put("project", new ProjectOperator(results.get("scan"), variables, relationalAtom));
-        }
-
-        return results;
-    }
+//    public static HashMap<String, Operator> buildQueryPlan(Query query) throws Exception {
+//
+//        HashMap<String, Operator> results = new HashMap<>();
+//        Head head = query.getHead();
+//        List<Atom> body = query.getBody();
+//        if (body.size() == 0) {
+//            throw new Exception("Query body is empty");
+//        }
+//
+//        // handle hidden condition
+//        int conIdx = 0;
+//        conIdx = findAndUpdateCondition(body);
+////        return null;
+//
+//
+//        // 1. create the scan operator
+//        Atom relationalAtom = body.get(0);
+//        if (relationalAtom instanceof RelationalAtom) {
+//            checkQueryMatchSchema((RelationalAtom) relationalAtom);
+//            String tableName = ((RelationalAtom) relationalAtom).getName();
+//            results.put("scan", new ScanOperator(tableName));
+//        } else
+//            throw new Exception("The first atom in the query body is not a relational atom");
+//
+////        2. check if it needed to select
+//        if (conIdx != 0) {
+//            List condition = body.subList(conIdx, body.size());
+//            checkQueryMatchSchema((RelationalAtom) relationalAtom);
+//            results.put("select", new SelectOperator((RelationalAtom) relationalAtom, condition));
+//            System.out.println("select added");
+//        }
+//        System.out.println("select failed added: " + conIdx);
+//
+//
+//        // check if needed to project by checking length of vars in head
+//        Boolean needProject = false;
+//        List<Variable> variables = head.getVariables();
+//        if (variables.size() != ((RelationalAtom) relationalAtom).getTerms().size()) {
+//            needProject = true;
+//        }
+//        // check if  order of variables in the head is the same as the schema e.g .Q(y,x) :- R(x,y)
+//        if (!needProject) {
+//            for (int i = 0; i < variables.size(); i++) {
+//                if (!variables.get(i).getName().equals(((RelationalAtom) relationalAtom).getTerms().get(i).toString())) {
+//                    needProject = true;
+//                    break;
+//                }
+//            }
+//        }
+//        if (needProject && conIdx != 0) {
+//            results.put("project", new ProjectOperator(results.get("select"), variables, relationalAtom));
+//        } else if (needProject && conIdx == 0) {
+//            results.put("project", new ProjectOperator(results.get("scan"), variables, relationalAtom));
+//        }
+//
+//        return results;
+//    }
 
 
     /**
@@ -175,6 +196,31 @@ public class QueryPlanner {
             i++;
         }
         return 0;
+    }
+
+    /**
+     * remove always true condition from the body; return true if contains always false condition (for now only 2 constants)
+     *
+     * @param body
+     */
+    public static Boolean removeCondition(List<Atom> body) {
+        int tmp_conidx = findComparisonAtoms(body);
+        if (tmp_conidx != 0) {
+            for (int i = tmp_conidx; i < body.size(); i++) {
+                if (body.get(i) instanceof ComparisonAtom) {
+                    ComparisonAtom atom = (ComparisonAtom) body.get(i);
+                    if (atom.isTwoConstant()) {
+                        if (atom.evalTwoConstant()) { // always true
+                            body.remove(i);
+                            i--;
+                        } else {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
 
@@ -236,7 +282,7 @@ public class QueryPlanner {
 //        ArrayList twoConMap = createTwoConMap(body, conIdx);
 //        HashMap<Integer, HashSet> rToSelConIdx = (HashMap<Integer, HashSet>) twoConMap.get(0);
 //        HashMap<Integer, HashSet> rToJoinConIdx = (HashMap<Integer, HashSet>) twoConMap.get(1);
-//
+//         this step now done outside this function in the main planner
 
         return conIdx;
     }
@@ -254,33 +300,51 @@ public class QueryPlanner {
     public static ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> createTwoConMap(List<Atom> body, int conIdx) {
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = new HashMap<>();
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = new HashMap<>();
-        // outer loop all conditions
-        for (int ri = 0; ri < conIdx; ri++) {
-            Atom atom = body.get(ri);
-            RelationalAtom relAtom = (RelationalAtom) atom;
-            HashSet<String> varInRelAtom = relAtom.getVarsNames();
-            selMap.put(ri, new HashSet<>());
-            joinMap.put(ri, new HashSet<>());
-            // create a set store all the variables in the relational atom
-            //find the variables in the relational atom that is also in the join condition
-            for (int ci = conIdx; ci < body.size(); ci++) {
-                ComparisonAtom condition = (ComparisonAtom) body.get(ci);// if this wrong then conIdx wrong
-                if (varInRelAtom.contains(condition.getTerm1().toString())) {
-                    if (condition.getTerm2() instanceof Constant) {
-                        selMap.get(ri).add(condition);
-                        System.out.println("selection condition: " + condition);
-                    } else if (condition.getTerm2() instanceof Variable) { // if the second term is a variable
-                        joinMap.get(ri).add(condition);
-                        System.out.println("join condition: " + condition);
-                    }
+
+        for (int i = 0; i < conIdx; i++) {
+            selMap.put(i, new HashSet<>());
+            joinMap.put(i, new HashSet<>());
+        }
+
+        for (int i = conIdx; i < body.size(); i++) {
+            if (!(body.get(i) instanceof ComparisonAtom)) {
+                break;
+            }
+            ComparisonAtom condition = (ComparisonAtom) body.get(i);
+            System.out.println("handling condition:" + condition.toString());
+
+            int leftIdx = -1;
+            int rightIdx = -1;
+            for (int j = 0; j < conIdx; j++) {
+                RelationalAtom atom = (RelationalAtom) body.get(j);
+
+                if (condition.getTerm1() instanceof Variable && atom.getVarsNames().contains(((Variable) condition.getTerm1()).getName())) {
+                    leftIdx = j;
                 }
+                if (condition.getTerm2() instanceof Variable && atom.getVarsNames().contains(((Variable) condition.getTerm2()).getName())) {
+                    rightIdx = j;
+                }
+            }
+            if (leftIdx == -1 && rightIdx == -1) { // would not happen, since we have already checked
+                throw new RuntimeException("Error: condition contains variable not in the body:" + condition);
+            }
+            if (leftIdx != -1 && rightIdx != -1) {
+                if (leftIdx != rightIdx) { // join condition
+                    if (leftIdx > rightIdx) {
+                        condition = swapCondition(condition);
+                        body.set(i, condition); // always put the smaller index in the left
+                    }
+                    joinMap.get(leftIdx).add(condition);
+                    joinMap.get(rightIdx).add(condition);
+                }
+            } else { // selection condition
+                selMap.get(leftIdx).add(condition);
             }
         }
 
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = new ArrayList<>();
         conMaps.add(selMap);
         conMaps.add(joinMap);
-        System.out.println("got con maps");
         return conMaps;
     }
 

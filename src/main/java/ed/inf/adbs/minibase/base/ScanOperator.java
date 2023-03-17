@@ -70,8 +70,7 @@ public class ScanOperator extends Operator {
                 String[] data = line.split(",");
                 Object[] fields = new Object[data.length];
                 for (int i = 0; i < data.length; i++) {
-                    System.out.println("when i = " + i + " data[i] = " + data[i] + " fieldType[i] = " + fieldTypes[i]);
-
+//                    System.out.println("when i = " + i + " data[i] = " + data[i] + " fieldType[i] = " + fieldTypes[i]);
                     fields[i] = convertToTerm(data[i], this.fieldTypes[i]);  // fieldType[i] is the type of the ith field
                 }
                 Tuple currentTuple = new Tuple(fields);
