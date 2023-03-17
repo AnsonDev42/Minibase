@@ -16,11 +16,14 @@ public class ProjectOperator extends Operator {
         ProjectOperator.childOperator = childOperator;
         this.projectedVars = projectedVars;
         this.projectedTuples = new HashSet<>();
-//        this.relationalAtom = (RelationalAtom) relationalAtom;
-        this.varIndexMap = createProjectionMap();
         this.jointTupleVarToIdx = jointTupleVarToIdx;
+        this.varIndexMap = createProjectionMap();
+        System.out.println("this.joinTupleVarToIdx: " + this.jointTupleVarToIdx);
     }
 
+    public static Operator getChildOperator() {
+        return childOperator;
+    }
 
     /**
      * Create a map of projected variables to their corresponding index in the original tuples
@@ -30,19 +33,22 @@ public class ProjectOperator extends Operator {
     public Map<Term, Integer> createProjectionMap() {
 //        THIS has been done, so no need to do it again
         //1. build a map of var to index in the table e.g. R(x,y,z)  x -> 0, y -> 1, z -> 2
-//        HashMap relationMap = new HashMap<>();
+//        HashMap jointTupleVarToIdx = new HashMap<>();
 //        List<Term> terms = this.relationalAtom.getTerms();
 //        for (int i = 0; i < terms.size(); i++) {
 //            if (terms.get(i) instanceof Variable) {
-//                relationMap.put(terms.get(i), i);
+//                jointTupleVarToIdx.put(terms.get(i), i);
 //            }
 //        }
-        HashMap<String, Integer> relationMap = this.jointTupleVarToIdx;
-
+        System.out.println("jointTupleVarToIdx: " + jointTupleVarToIdx);
         //2. build a map of var to index in the query e.g. Q(y,x)  y -> 1, x -> 0
         HashMap<Term, Integer> termToIndexMap = new HashMap<>();
         for (Term projectedVar : projectedVars) {
-            Integer index = relationMap.get(projectedVar);
+
+            if (jointTupleVarToIdx.get(projectedVar.toString()) == null) {
+                throw new RuntimeException("Error: jointTupleVarToIdx does not contain the projectedVar");
+            }
+            Integer index = jointTupleVarToIdx.get(projectedVar.toString());
             if (index == null) {
                 throw new RuntimeException("Error: field value is null, probably because an unseen variable is in the query");
             }

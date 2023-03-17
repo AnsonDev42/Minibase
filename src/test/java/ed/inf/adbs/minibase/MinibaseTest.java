@@ -201,6 +201,8 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x) :- T(x,z), z>0");
         Operator projectOperator = (new QueryPlanner(query)).getOperator();
+        assertTrue(projectOperator instanceof ProjectOperator);
+        assertTrue(ProjectOperator.getChildOperator() instanceof SelectOperator);
 
         assertEquals("[1]", projectOperator.getNextTuple().toString());
         assertEquals("[2]", projectOperator.getNextTuple().toString());

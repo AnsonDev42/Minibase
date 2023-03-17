@@ -8,10 +8,10 @@ import static ed.inf.adbs.minibase.Utils.copyTerm;
 import static ed.inf.adbs.minibase.Utils.swapCondition;
 
 public class QueryPlanner {
-    private final Operator operator;
+    private static Operator operator;
 
     public QueryPlanner(Query query) throws Exception {
-        this.operator = buildQueryPlan_withJoin(query);
+        operator = buildQueryPlan_withJoin(query);
     }
 
     public Operator getOperator() {
@@ -21,6 +21,10 @@ public class QueryPlanner {
     public static HashMap<String, Integer> createJointTupleVarToIdx(List<Atom> body, int conIdx) {
         HashMap<String, Integer> varIndexInJoinTupleMap = new HashMap<>();
         int index = 0;
+        if (conIdx == 0) {
+            conIdx = body.size();
+            System.out.println("conIdx: " + conIdx);
+        }
         for (int i = 0; i < conIdx; i++) {
             RelationalAtom atom = (RelationalAtom) body.get(i);
             for (Term term : atom.getTerms()) {
@@ -45,12 +49,17 @@ public class QueryPlanner {
             //TODO: do something faster?
         }
         // handle hidden condition
-        int conIdx = 0;
-        conIdx = findAndUpdateCondition(body);
+        int conIdx = findAndUpdateCondition(body);
+        if (conIdx == 0) {
+            conIdx = body.size();
+        }
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
         Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
-        if (jointTupleVarToIdx.size() < head.getVariables().size()) {
+        System.out.println("jointTupleVarToIdx.size: " + jointTupleVarToIdx.size() + " head.getVariables().size(): " + head.getVariables().size());
+        if (jointTupleVarToIdx.size() > head.getVariables().size()) {
             // add project operator
+            System.out.println("head vars: " + head.getVariables());
+            System.out.println("jointTupleVarToIdx: " + jointTupleVarToIdx);
             root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
         }
         return root;
@@ -66,8 +75,11 @@ public class QueryPlanner {
         // Create initial operators
         ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
+            if (!(body.get(i) instanceof RelationalAtom)) {
+                break;
+            }
             RelationalAtom relAtom = (RelationalAtom) body.get(i);
-            if (selMap.get(i).isEmpty() || joinMap.get(i).isEmpty()) {
+            if (selMap.get(i) != null && selMap.get(i).isEmpty()) {
                 operators.add(new ScanOperator(relAtom.getName()));
             } else {
                 operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
@@ -76,8 +88,10 @@ public class QueryPlanner {
 
 
         // Create deep left join tree
-        
         Operator root = operators.get(0); // just pointer
+        if (body.size() == 1) {
+            return root;
+        }
         HashSet<ComparisonAtom> leftConditionPool = joinMap.get(0);
         for (int i = 1; i < conIdx; i++) {
             // create intersection of join conditions between left(joined)Tuple and right (to be joined) tuple
