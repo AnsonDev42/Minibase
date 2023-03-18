@@ -263,4 +263,33 @@ public class QueryPlannerTest {
         assertNull(tuple3);
     }
 
+    @Test
+    public void testAggregateExtraction() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q( SUM(x) ) :- R(x, y, z)");
+//        Query query = QueryParser.parse("Q(x) :- R(x, y, z)");
+        System.out.println("testing query head:" + query.getHead().toString());
+        System.out.println("testing query head term:" + (query.getHead().getSumAggregate() instanceof Term));
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query_sum.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath); // 36
+
+
+    }
+
+    @Test
+    public void testAggregate1() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q( x, SUM(y * y) ) :- R(x, y, z)");
+        System.out.println("testing query head:" + query.getHead().getSumAggregate().toString());
+//        Query query = QueryParser.parse("Q(x) :- R(x, y, z)");
+        System.out.println("testing query head:" + query.getHead().toString());
+        System.out.println("testing query head term:" + (query.getHead().getSumAggregate() instanceof Term));
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query_sum.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath); // 36
+    }
+
 }

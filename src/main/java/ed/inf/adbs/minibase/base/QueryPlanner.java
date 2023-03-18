@@ -55,11 +55,14 @@ public class QueryPlanner {
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
         Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
         System.out.println("jointTupleVarToIdx.size: " + jointTupleVarToIdx.size() + " head.getVariables().size(): " + head.getVariables().size());
-        if (jointTupleVarToIdx.size() > head.getVariables().size()) {
+        if (jointTupleVarToIdx.size() > head.getVariables().size() && head.getSumAggregate() == null) {
             // add project operator
             System.out.println("head vars: " + head.getVariables());
             System.out.println("jointTupleVarToIdx: " + jointTupleVarToIdx);
             root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+        }
+        if (head.getSumAggregate() != null) {
+            root = new SumOperator(root, head, jointTupleVarToIdx);
         }
         return root;
     }
