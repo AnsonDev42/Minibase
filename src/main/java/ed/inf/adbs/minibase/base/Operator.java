@@ -24,7 +24,6 @@ public class Operator {
             while (tuple != null) {
                 System.out.println(tuple);
 //                remove brackets at the beginning and end of the tuple
-
                 writer.write(tuple.toString().trim().substring(1, tuple.toString().trim().length() - 1));
                 writer.newLine();
                 tuple = getNextTuple();

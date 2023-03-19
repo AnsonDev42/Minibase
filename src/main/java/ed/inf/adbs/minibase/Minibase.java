@@ -1,9 +1,6 @@
 package ed.inf.adbs.minibase;
 
-import ed.inf.adbs.minibase.base.Atom;
-import ed.inf.adbs.minibase.base.ComparisonAtom;
-import ed.inf.adbs.minibase.base.Head;
-import ed.inf.adbs.minibase.base.Query;
+import ed.inf.adbs.minibase.base.*;
 import ed.inf.adbs.minibase.parser.QueryParser;
 
 import java.util.List;
@@ -16,23 +13,25 @@ import static ed.inf.adbs.minibase.base.QueryPlanner.findComparisonAtoms;
 public class Minibase {
 
     public static void main(String[] args) {
+        try {
+            if (args.length != 3) {
+                System.err.println("Usage: Minibase database_dir input_file output_file");
+                return;
+            }
 
-        if (args.length != 3) {
-            System.err.println("Usage: Minibase database_dir input_file output_file");
-            return;
+            String databaseDir = args[0];
+            String inputFile = args[1];
+            String outputFile = args[2];
+            evaluateCQ(databaseDir, inputFile, outputFile);
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        String databaseDir = args[0];
-        String inputFile = args[1];
-        String outputFile = args[2];
-
-//        evaluateCQ(databaseDir, inputFile, outputFile);
-
-        parsingExample(inputFile);
     }
 
-    public static void evaluateCQ(String databaseDir, String inputFile, String outputFile) {
-        // TODO: add your implementation
+    public static void evaluateCQ(String databaseDir, String inputFile, String outputFile) throws Exception {
+        Catalog catalog = Catalog.getInstance(databaseDir);
+        Interpreter interpreter = new Interpreter(inputFile, outputFile);
+        interpreter.dump();
     }
 
     /**
@@ -52,20 +51,7 @@ public class Minibase {
             System.out.println("Head: " + head);
             List<Atom> body = query.getBody();
             System.out.println("Body: " + body);
-            int index = findComparisonAtoms(body);
-            if (index != -1) {
-                System.out.println("Comparison atom found at index " + index);
-            } else {
-                System.out.println("No comparison atoms found");
-            }
-//          for now always handle the first comparison atom
-            if (index != -1) {
-                ComparisonAtom comparisonAtom = (ComparisonAtom) body.get(index);
-                System.out.println("Comparison atom: " + comparisonAtom);
-            }
-
         } catch (Exception e) {
-            System.err.println("Exception occurred during parsing");
             e.printStackTrace();
         }
     }

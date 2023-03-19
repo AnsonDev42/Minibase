@@ -164,7 +164,7 @@ public class QueryPlannerTest {
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5");
         System.out.println("testing query" + query.toString());
         List<Atom> body = query.getBody();
-        removeCondition(body);
+//        removeCondition(body); //already removed at first place
         assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 5]", body.toString());
         int conIdx = findAndUpdateCondition(body);
         assertEquals(3, conIdx);
@@ -185,7 +185,7 @@ public class QueryPlannerTest {
         Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 'rhcp'");
         System.out.println("testing query" + query.toString());
         List<Atom> body = query.getBody();
-        removeCondition(body);
+//        removeCondition(body); already removed at first place
         assertEquals("testing body", "[R(x, y, z), S(a, b, c), T(xx, cc), x = xx, y = a, b = 'rhcp']", body.toString());
         int conIdx = findAndUpdateCondition(body);
         assertEquals(3, conIdx);
@@ -274,14 +274,45 @@ public class QueryPlannerTest {
         String outputFilePath = "data/evaluation/test_db/test_output/query_sum.csv";
         File file = new File(outputFilePath);
         root.dump(outputFilePath); // 36
-
-
     }
+
+    @Test
+    public void testAggregateSumGROUP() throws IOException {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q( SUM(x) ) :- R(x, y, z)");
+        // Set up the test data and expected results
+        ScanOperator child = new ScanOperator("R");
+        HashMap<String, Integer> varToIndexMap = new HashMap<>();
+        varToIndexMap.put("x", 0);
+        varToIndexMap.put("y", 1);
+        varToIndexMap.put("z", 2);
+
+        SumOperator sumOperator = new SumOperator(child, query.getHead(), varToIndexMap);
+        sumOperator.computeSum();
+        int expectedResult = 36;
+        System.out.println("sumOperator.getGroups().values()" + sumOperator.getGroups().values());
+        assertEquals(expectedResult, sumOperator.getGroups().values().iterator().next());
+    }
+
 
     @Test
     public void testAggregate1() throws Exception {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q( x, SUM(y * y) ) :- R(x, y, z)");
+        System.out.println("testing query head:" + query.getHead().getSumAggregate().toString());
+//        Query query = QueryParser.parse("Q(x) :- R(x, y, z)");
+        System.out.println("testing query head:" + query.getHead().toString());
+        System.out.println("testing query head term:" + (query.getHead().getSumAggregate() instanceof Term));
+        Operator root = (new QueryPlanner(query)).getOperator();
+        String outputFilePath = "data/evaluation/test_db/test_output/query_sum.csv";
+        File file = new File(outputFilePath);
+        root.dump(outputFilePath); // 36
+    }
+
+    @Test
+    public void testAggregate2() throws Exception {
+        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+        Query query = QueryParser.parse("Q( x, SUM(x) ) :- R(x, y, z)");
         System.out.println("testing query head:" + query.getHead().getSumAggregate().toString());
 //        Query query = QueryParser.parse("Q(x) :- R(x, y, z)");
         System.out.println("testing query head:" + query.getHead().toString());

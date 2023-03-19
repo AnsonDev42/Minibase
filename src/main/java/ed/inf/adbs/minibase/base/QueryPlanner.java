@@ -10,13 +10,57 @@ public class QueryPlanner {
     private static Operator operator;
 
     public QueryPlanner(Query query) throws Exception {
-        operator = buildQueryPlan(query);
+        operator = buildQueryPlan(query); // See algorithm inside this method
     }
 
     public Operator getOperator() {
         return operator;
     }
 
+
+    /**
+     * This method is used to build the query plan. See more details below.
+     *
+     * @param query the query to be executed
+     * @return the root operator of the query plan
+     */
+    public static Operator buildQueryPlan(Query query) throws Exception {
+        Head head = query.getHead();
+        List<Atom> body = query.getBody();
+        if (body.size() == 0) {
+            throw new Exception("Query body is empty");
+        }
+        // STEP1 : remove all always true condition, return dummy operator if any (Constant)condition is always False
+        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
+            return new dummyOperator();
+        }
+        // STEP2: handle hidden condition, by extracting them and add them to the body
+        int conIdx = findAndUpdateCondition(body);
+        if (conIdx == 0) { // try to optimize for following functions to iterate either relational Atoms or condition Atoms
+            conIdx = body.size();
+        }
+        // STEP3: create join tree for relational atoms, add create selection operator if needed
+        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
+        // STEP4: add project operator if needed
+        if (jointTupleVarToIdx.size() > head.getVariables().size() && head.getSumAggregate() == null) {
+            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+        }
+        // STEP5: add sum operator if needed
+        if (head.getSumAggregate() != null) {
+            root = new SumOperator(root, head, jointTupleVarToIdx);
+        }
+        return root;
+    }
+
+
+    /**
+     * return a map of variable name to index in final join tuple
+     *
+     * @param body   final body that should not be modified
+     * @param conIdx index of the first condition in the body
+     * @return map of variable name to index in final join tuple
+     */
     public static HashMap<String, Integer> createJointTupleVarToIdx(List<Atom> body, int conIdx) {
         HashMap<String, Integer> varIndexInJoinTupleMap = new HashMap<>();
         int index = 0;
@@ -37,47 +81,23 @@ public class QueryPlanner {
     }
 
 
-    public static Operator buildQueryPlan(Query query) throws Exception {
-        Head head = query.getHead();
-        List<Atom> body = query.getBody();
-        if (body.size() == 0) {
-            throw new Exception("Query body is empty");
-        }
-        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
-            body = new ArrayList<Atom>(); // clear all body since one condition is always false
-            //TODO: do something faster?
-        }
-        // handle hidden condition
-        int conIdx = findAndUpdateCondition(body);
-        if (conIdx == 0) {
-            conIdx = body.size();
-        }
-        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
-        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
-        System.out.println("jointTupleVarToIdx.size: " + jointTupleVarToIdx.size() + " head.getVariables().size(): " + head.getVariables().size());
-        if (jointTupleVarToIdx.size() > head.getVariables().size() && head.getSumAggregate() == null) {
-            // add project operator
-            System.out.println("head vars: " + head.getVariables());
-            System.out.println("jointTupleVarToIdx: " + jointTupleVarToIdx);
-            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
-        }
-        if (head.getSumAggregate() != null) {
-            root = new SumOperator(root, head, jointTupleVarToIdx);
-        }
-        return root;
-    }
-
-
+    /**
+     * create join tree for relational atoms, add create selection operator if needed
+     *
+     * @param body               prepossessed body contains no repeated variables
+     * @param conIdx             index of first condition atom
+     * @param jointTupleVarToIdx map from variable name to index in final join tuple(returned tuple from root join operator)
+     * @return root of join tree
+     * @throws IOException
+     */
     public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx, HashMap<String, Integer> jointTupleVarToIdx) throws IOException {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
-//        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
-
-        // Create initial operators
+        // Create initial operators for each relAtoms based on if they have selection conditions
         ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
-            if (!(body.get(i) instanceof RelationalAtom)) {
+            if (!(body.get(i) instanceof RelationalAtom)) { // should not happen
                 break;
             }
             RelationalAtom relAtom = (RelationalAtom) body.get(i);
@@ -87,16 +107,14 @@ public class QueryPlanner {
                 operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
             }
         }
-
-
         // Create deep left join tree
         Operator root = operators.get(0); // just pointer
         if (body.size() == 1) {
-            return root;
+            return root; // no join needed
         }
-        HashSet<ComparisonAtom> leftConditionPool = joinMap.get(0);
+        HashSet<ComparisonAtom> leftConditionPool = joinMap.get(0); // store all join conditions for left child
         for (int i = 1; i < conIdx; i++) {
-            // create intersection of join conditions between left(joined)Tuple and right (to be joined) tuple
+            // create intersection of join conditions between left (joined) Tuple and right (to be joined) tuple
             HashSet<ComparisonAtom> rightChildConditions = joinMap.get(i);
             HashSet<ComparisonAtom> intersection = new HashSet<>(leftConditionPool);
             intersection.retainAll(rightChildConditions);
@@ -109,26 +127,11 @@ public class QueryPlanner {
             if (jr_root.getRightChild() instanceof JoinOperator) {
                 throw new IllegalStateException("Right child should not be a JoinOperator");
             }
-            // Update leftConditionPool
-            leftConditionPool.addAll(rightChildConditions);
+            leftConditionPool.addAll(rightChildConditions); // Update leftConditionPool
         }
         return root;
     }
 
-
-    /**
-     * This function checks if the query is correct with respect to the schema
-     *
-     * @param atom the relational atom (in the query) to be checked
-     * @throws IllegalArgumentException if the number of terms in the atom does not match the schema
-     */
-    public static void checkQueryMatchSchema(RelationalAtom atom) {
-        int numInSchema = Catalog.getInstance(null).getSchema(atom.getName()).length;
-        int numInAtom = atom.getTerms().size();
-        if (numInAtom != numInSchema) {
-            throw new IllegalArgumentException("The number of terms  in the atom:" + atom.getName() + " does not match the schema");
-        }
-    }
 
     /**
      * Find first index of ComparisonAtom in the body of the query (if it exists)
@@ -149,9 +152,10 @@ public class QueryPlanner {
     }
 
     /**
-     * remove always true condition from the body; return true if contains always false condition (for now only 2 constants)
+     * remove always true condition from the body;
+     * return true if contains always false condition (for now only 2 constants) so that the query is always false(no result)
      *
-     * @param body
+     * @param body body of the query
      */
     public static Boolean removeCondition(List<Atom> body) {
         int tmp_conidx = findComparisonAtoms(body);
@@ -174,9 +178,15 @@ public class QueryPlanner {
     }
 
 
+    /**
+     * Create a hashMap to store all defined variables in the body, and set the value to 1,
+     * for later to find repeated variables when iterate through body
+     *
+     * @param body body of the query
+     * @return two maps for selection and join conditions
+     */
     public static HashMap<String, Integer> getDefinedVariables(List<Atom> body) {
         HashMap<String, Integer> definedVariables = new HashMap<>();
-        // find all variable names in case of clash
         for (Atom atom : body) {
             if (atom instanceof RelationalAtom) {
                 RelationalAtom relAtom = (RelationalAtom) atom;
@@ -190,7 +200,7 @@ public class QueryPlanner {
 
 
     /**
-     * Find the first condition in the body of the query and update the body, if it exists,
+     * STEP2: Find the first condition in the body of the query and update the body, if it exists,
      * and modify the relational atom(if include constant) by creating new var name and add condition.
      * e.g. R(x,y) :- R(x, 5)    --->  R(x,y) :- R(x, y), y = 5 and return 1
      *
@@ -198,26 +208,22 @@ public class QueryPlanner {
      * @return first condition in the body of the query, else -1
      */
     public static int findAndUpdateCondition(List<Atom> body) {
+        /*  workflow
+        potential optimization: build a table for each var e.g.  'x' : {R(0), S(1), T(2)}
+            STEP2.1: extract hidden selection condition and add to the body, without touching join
+                e.g. R(x, 5), S(x, b), ==> R(x, y), S(x, b), y=5
+            STEP2.2: extract join condition and add to the body,
+                e.g.  R(x, y), S(a, b), y=5 ==> R(x, y), S(a, b), y=5, x=a
+            STEP2.3: create both selection and join condition map for EACH relational atom
+         */
         HashMap<String, Integer> preDefVariables = getDefinedVariables(body);
         HashMap<String, HashSet> varToJoinVarIdx = initVarToJoinVarIdx(preDefVariables);
         Random ranObj = new Random();
         int conIdx = 0;
-        /*  workflow
-        potential optimization: build a table for each var e.g.  'x' : {R(0), S(1), T(2)}
-            STEP1: extract hidden selection condition and add to the body, without touching join
-                e.g. R(x, 5), S(x, b), ==> R(x, y), S(x, b), y=5
-            STEP2: extract join condition and add to the body,
-                e.g.  R(x, y), S(a, b), y=5 ==> R(x, y), S(a, b), y=5, x=a
-
-            STEP3: create both selection and join condition map for EACH relational atom
-
-         */
-
-        // STEP1 AND STEP2: extract hidden SELECTION and JOIN conditions to the body
+        // STEP2.1; 2.2: extract hidden SELECTION and JOIN conditions to the body
         for (int i = 0; i < body.size(); i++) {
             Atom atom = body.get(i);
             if (atom instanceof RelationalAtom) {
-                // STEP1 extract selection condition; STEP2 extract join condition
                 if (addImpliedConditions(body, ranObj, preDefVariables, i, atom, varToJoinVarIdx) && conIdx == 0) {
                     conIdx = i;// prevent the below did not get any condition
                 }
@@ -227,13 +233,6 @@ public class QueryPlanner {
                 break;
             }
         }
-
-        // STEP3: create both selection and join condition map for EACH relational atom: in other functions
-//        ArrayList twoConMap = createTwoConMap(body, conIdx);
-//        HashMap<Integer, HashSet> rToSelConIdx = (HashMap<Integer, HashSet>) twoConMap.get(0);
-//        HashMap<Integer, HashSet> rToJoinConIdx = (HashMap<Integer, HashSet>) twoConMap.get(1);
-//         this step now done outside this function in the main planner
-
         return conIdx;
     }
 
@@ -267,7 +266,6 @@ public class QueryPlanner {
             int rightIdx = -1;
             for (int j = 0; j < conIdx; j++) {
                 RelationalAtom atom = (RelationalAtom) body.get(j);
-
                 if (condition.getTerm1() instanceof Variable && atom.getVarsNames().contains(((Variable) condition.getTerm1()).getName())) {
                     leftIdx = j;
                 }
@@ -279,19 +277,18 @@ public class QueryPlanner {
                 throw new RuntimeException("Error: condition contains variable not in the body:" + condition);
             }
             if (leftIdx != -1 && rightIdx != -1) {
-                if (leftIdx != rightIdx) { // join condition
+                if (leftIdx != rightIdx) { // join condition( selection not in the same atom)
                     if (leftIdx > rightIdx) {
-                        condition = swapCondition(condition);
+                        condition = swapCondition(condition); // swap the two terms, can be delete later
                         body.set(i, condition); // always put the smaller index in the left
                     }
                     joinMap.get(leftIdx).add(condition);
                     joinMap.get(rightIdx).add(condition);
                 }
-            } else { // selection condition
+            } else { // selection condition (one of the term is constant)
                 selMap.get(leftIdx).add(condition);
             }
         }
-
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = new ArrayList<>();
         conMaps.add(selMap);
         conMaps.add(joinMap);
@@ -361,7 +358,13 @@ public class QueryPlanner {
         return added;
     }
 
-    //TODO: create a new var ( unseen in preDefVars)
+    /**
+     * Create a new variable that is not in the pre-defined variables
+     *
+     * @param preDefVars pre-defined variables i.e. to create a unique variable name
+     * @param ranObj     random object
+     * @return a new unique(so far) and unseen variable name
+     */
     public static String createNewVar(HashMap<String, Integer> preDefVars, Random ranObj) {
         String newVar = "";
         do {
