@@ -1,15 +1,21 @@
 # Minibase
 
-Special case: when a string and an integer is compared, it will throw a comparsion error, since the PDF only indicated
+## 0. Run the programme.
+
+TL,DL: Default setting for running CQMinimiser and Minibase(evaluation) should be fine.
+
+You shouldn't test out of the range from PDF, if so, the following error will be thrown(and more undocumented, please
+check thrown Error message if available):
+`Special case: when a string and an integer is compared, it will throw a comparsion error, since the PDF only indicated
 that two string are compared in lexcial order, but not mentioned about between string and integer.(e.g. throw exception
 for Q(x)-: R(x,y,z),
-z="test string" ,where R is (int,int,int) )
+z="test string" ,where R is (int,int,int) )`
 
-Special case: if condition contains unseen Variable, it will throw a variable not found error. (e.g. throw exception
+`Special case: if condition contains unseen Variable, it will throw a variable not found error. (e.g. throw exception`
 
 ## 1. Extracting join conditions from the body of a query explaination
 
-*you can also find in QueryPlanner code comment, but they are separated out.*
+*you can also find in QueryPlanner code comment, but they are separated out with corresponding functions*
 
 0. Prepocess a bit for the body, by calling **removeCondition**() method. This method is responsible for removing
    conditions always True; return dummyOperator if any condition is False; and redundant-conditions(WIP).
