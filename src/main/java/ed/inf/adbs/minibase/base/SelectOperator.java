@@ -14,7 +14,7 @@ public class SelectOperator extends Operator {
 
     public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> conditions) throws IOException {
         this.relationalAtom = relationalAtom;
-        this.childScanOperator = new ScanOperator(relationalAtom.getName());
+        this.childScanOperator = new ScanOperator(relationalAtom, requiredColumns);
         this.conditions = conditions;
         this.termToIndexMap = createTermToIndexMap(relationalAtom);
     }

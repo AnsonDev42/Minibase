@@ -3,27 +3,29 @@ package ed.inf.adbs.minibase.base;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.List;
 
 public class ScanOperator extends Operator {
     private final String relationName;
+    private final List<String> requiredColumns;
     private BufferedReader reader;
-    private static int currentLocation;
     private final String[] fieldTypes;
     private static FileReader fileReader;
 
     /**
      * Constructor for ScanOperator
      *
-     * @param relationName the String name of the relation
+     * @param RelationalAtom   the relation atom
+     * @param requiredColumns
      */
-    public ScanOperator(String relationName) throws IOException {
-        this.relationName = relationName;
+    public ScanOperator(RelationalAtom relAtom, List<String> requiredColumns) throws IOException {
+        this.relationName = relAtom.getName();
         // TODO: optimise the get FileReader by not retrieving from Catalog every time
         fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
+        this.requiredColumns = requiredColumns;
         this.reader = new BufferedReader(fileReader);
         this.reader.mark(0);
         this.fieldTypes = Catalog.getInstance(null).getSchema(relationName);
-        currentLocation = 0;
     }
 
     /**
@@ -90,7 +92,6 @@ public class ScanOperator extends Operator {
      */
     @Override
     public void reset() throws IOException {
-        currentLocation = 0;
         try {
             this.reader.reset();
             this.reader.mark(0);

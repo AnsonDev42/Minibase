@@ -9,12 +9,125 @@ import static ed.inf.adbs.minibase.Utils.swapCondition;
 public class QueryPlanner {
     private static Operator operator;
 
+
     public QueryPlanner(Query query) throws Exception {
         operator = buildQueryPlan(query); // See algorithm inside this method
     }
 
     public Operator getOperator() {
         return operator;
+    }
+
+
+    /**
+     * With pushdown optimization!
+     *
+     * @param query
+     * @return
+     * @throws Exception
+     */
+    public static Operator buildQueryPlanV2(Query query) throws Exception {
+        Head head = query.getHead();
+        List<Atom> body = query.getBody();
+        if (body.size() == 0) {
+            throw new Exception("Query body is empty");
+        }
+        // STEP1 : remove all always true condition, return dummy operator if any (Constant)condition is always False
+        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
+            return new dummyOperator();
+        }
+//        STEP2: create a map from
+
+        // STEP3: handle hidden condition, by extracting them and add them to the body
+        int conIdx = findAndUpdateCondition(body);
+
+        if (conIdx == 0) { // try to optimize for following functions to iterate either relational Atoms or condition Atoms
+            conIdx = body.size();
+        }
+        // STEP optimise: push down selection
+        Set<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
+
+
+        if (head.getSumAggregate() != null) {
+//            pushDownSelection(body, conIdx);
+        }
+
+
+        // STEP3: create join tree for relational atoms, add create selection operator if needed
+        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+        // STEP4: add project operator if needed
+        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
+
+        if (needProject(head, jointTupleVarToIdx)) {
+            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+        }
+        // STEP5: add sum operator if needed
+        if (head.getSumAggregate() != null) {
+            root = new SumOperator(root, head, jointTupleVarToIdx);
+        }
+        return root;
+    }
+
+    /**
+     * get requried coloumn variables
+     *
+     * @param body   preprocessed body
+     * @param head   head of the query
+     * @param conIdx index of the first condition atom
+     * @return Set<String> requiredColumns
+     */
+    public static Set<String> computeRequiredColumns(List<Atom> body, Head head, int conIdx) {
+        Set<String> requiredColumns = new HashSet<>();
+        ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
+        HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
+        HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
+//      Iterate over selMap and Joinmap to find all the columns that are required
+        Arrays.asList(selMap, joinMap).forEach(map -> {
+            map.forEach((k, v) -> {
+                v.forEach(atom -> {
+                    if (!atom.isTwoConstant()) {
+                        if (atom.getTerm1() instanceof Variable) {
+                            requiredColumns.add(((Variable) atom.getTerm1()).getName());
+                        }
+                        if (atom.getTerm2() instanceof Variable) {
+                            requiredColumns.add(((Variable) atom.getTerm2()).getName());
+                        }
+                    }
+                });
+            });
+        });
+
+        for (Variable var : head.getVariables()) {
+            requiredColumns.add(var.getName());
+        }
+
+        head.getSumAggregate().getProductTerms().forEach(term -> {
+            if (term instanceof Variable) {
+                requiredColumns.add(((Variable) term).getName());
+            }
+        });
+        return requiredColumns;
+    }
+
+
+    /**
+     * check if the query need to be projected
+     *
+     * @param head               the head of the query
+     * @param jointTupleVarToIdx the mapping from variable to index in the joint tuple
+     * @return true if the query need to be projected
+     */
+    public static boolean needProject(Head head, HashMap<String, Integer> jointTupleVarToIdx) {
+        int headIdx = 0;
+        if (jointTupleVarToIdx.size() != head.getVariables().size() || head.getSumAggregate() != null) {
+            return true;
+        }
+        for (Variable var : head.getVariables()) {
+            if (headIdx != jointTupleVarToIdx.get(var.toString())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -66,7 +179,6 @@ public class QueryPlanner {
         int index = 0;
         if (conIdx == 0) {
             conIdx = body.size();
-            System.out.println("conIdx: " + conIdx);
         }
         for (int i = 0; i < conIdx; i++) {
             RelationalAtom atom = (RelationalAtom) body.get(i);
@@ -94,8 +206,8 @@ public class QueryPlanner {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
-        System.out.println("selMap: " + selMap);
-        System.out.println("joinMap: " + joinMap);
+//        System.out.println("selMap: " + selMap);
+//        System.out.println("joinMap: " + joinMap);
         // Create initial operators for each relAtoms based on if they have selection conditions
         ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
@@ -104,7 +216,7 @@ public class QueryPlanner {
             }
             RelationalAtom relAtom = (RelationalAtom) body.get(i);
             if (selMap.get(i) != null && selMap.get(i).isEmpty()) {
-                operators.add(new ScanOperator(relAtom.getName()));
+                operators.add(new ScanOperator(relAtom.getName(), requiredColumns));
             } else {
                 operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
             }
