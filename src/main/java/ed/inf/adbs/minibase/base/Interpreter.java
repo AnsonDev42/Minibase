@@ -24,7 +24,7 @@ public class Interpreter {
         try {
             rootOperator.dump(outputFile);
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Dump complete. check output file: " + outputFile);
         }
     }
 }

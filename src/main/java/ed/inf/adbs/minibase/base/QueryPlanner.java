@@ -94,6 +94,8 @@ public class QueryPlanner {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
+        System.out.println("selMap: " + selMap);
+        System.out.println("joinMap: " + joinMap);
         // Create initial operators for each relAtoms based on if they have selection conditions
         ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
@@ -260,7 +262,6 @@ public class QueryPlanner {
                 break;
             }
             ComparisonAtom condition = (ComparisonAtom) body.get(i);
-            System.out.println("handling condition:" + condition.toString());
 
             int leftIdx = -1;
             int rightIdx = -1;

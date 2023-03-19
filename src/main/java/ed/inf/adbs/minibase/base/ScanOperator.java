@@ -98,7 +98,7 @@ public class ScanOperator extends Operator {
             fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
             this.reader = new BufferedReader(fileReader);
             this.reader.mark(0);
-            System.out.println("Reset successfully");
+            System.out.println(" Reset successfully");
         }
     }
 }

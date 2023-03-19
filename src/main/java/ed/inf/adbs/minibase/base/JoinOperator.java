@@ -15,6 +15,8 @@ public class JoinOperator extends Operator {
     private final List<ComparisonAtom> joinConditions;
     private final HashMap<String, Integer> leftTermToIndexMap;
     private final HashMap<String, Integer> rightTermToIndexMap;
+    private Tuple currentLeftTuple = null;
+
 
     public JoinOperator(Operator leftChild, Operator rightChild, HashMap<String, Integer> leftTermToIndexMap,
                         RelationalAtom RightRelAtom, List joinConditions) {
@@ -38,16 +40,30 @@ public class JoinOperator extends Operator {
         Tuple leftTuple;
         Tuple rightTuple;
         // outer loop iterates over left child
-        while ((leftTuple = leftChild.getNextTuple()) != null) {
-            rightChild.reset();
+        System.out.println("HERE in the end");
+        while (true) {
+            // If the current left tuple is null, move to the next left tuple
+            if (currentLeftTuple == null) {
+                currentLeftTuple = leftChild.getNextTuple();
+
+                // If there are no more left tuples, reset and return null
+                if (currentLeftTuple == null) {
+                    reset();
+                    return null;
+                }
+                rightChild.reset(); // reset right child every time we move to the next left tuple
+            }
+
             while ((rightTuple = rightChild.getNextTuple()) != null) {
-                System.out.println("before breaking..." + leftTuple + " " + rightTuple);
-                if (passConditions(leftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
-                    return Tuple.join(leftTuple, rightTuple);
+                if (passConditions(currentLeftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
+                    return Tuple.join(currentLeftTuple, rightTuple);
                 }
             }
+
+            // If there are no more right tuples, set the current left tuple to null
+            // This will cause the outer loop to move to the next left tuple
+            currentLeftTuple = null;
         }
-        return null;
     }
 
 

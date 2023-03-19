@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.*;
 
 import static ed.inf.adbs.minibase.CQMinimizer.isSameTerm;
+import static ed.inf.adbs.minibase.Minibase.evaluateCQ;
 import static ed.inf.adbs.minibase.base.QueryPlanner.*;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertThrows;
@@ -82,8 +83,6 @@ public class MinibaseTest {
         Tuple tuple3 = scanOperator.getNextTuple();
         assertEquals(s, tuple3.toString());
     }
-
-
 
 
     @Test
@@ -227,5 +226,74 @@ public class MinibaseTest {
 
     }
 
+
+    @Test
+    public void testIntepreter6() throws Exception {
+        String databaseDir = "data/evaluation/db";
+        String inputFile = "data/evaluation/input/query6_debug.txt";
+        String outputFile = "data/evaluation/test_db/test_output/query6.csv";
+
+        Catalog catalog = Catalog.getInstance(databaseDir);
+        Operator op = buildQueryPlan(QueryParser.parse("Q(y, r) :- R(x, y, z), S(x, w, t), T(x, r), x = 1"));
+        op.dump(outputFile); // actually join now
+        assertTrue(op instanceof ProjectOperator);
+        assertTrue(ProjectOperator.getChildOperator() instanceof JoinOperator);
+        JoinOperator joinOperator = (JoinOperator) ProjectOperator.getChildOperator();
+        joinOperator.dump(outputFile);
+        assertTrue(joinOperator.getRightChild() instanceof ScanOperator);
+        ScanOperator r1 = (ScanOperator) joinOperator.getRightChild();
+        assertEquals("T", r1.getRelationName());
+        assertTrue(joinOperator.getLeftChild() instanceof JoinOperator);
+        JoinOperator l1 = (JoinOperator) joinOperator.getLeftChild();
+        assertTrue(l1.getRightChild() instanceof ScanOperator);
+        ScanOperator l1_r2 = (ScanOperator) l1.getRightChild();
+        assertEquals("S", l1_r2.getRelationName());
+        assertTrue(l1.getLeftChild() instanceof SelectOperator);
+        SelectOperator l1_l2 = (SelectOperator) l1.getLeftChild();
+
+//        l1.dump(outputFile);
+
+
+//        assertEquals("[1, 1]", scanOperator.getNextTuple().toString());
+//        scanOperator.dump(outputFile);
+//        joinOperator.dump(outputFile);
+//        Operator root = op;
+//        evaluateCQ(databaseDir, inputFile, outputFile);
+    }
+
+
+    @Test
+    public void voidtestIntepreter61() throws Exception {
+        String databaseDir = "data/evaluation/db";
+        String inputFile = "data/evaluation/input/query6_debug.txt";
+        String outputFile = "data/evaluation/test_db/test_output/query6.csv";
+
+        Catalog catalog = Catalog.getInstance(databaseDir);
+        Operator op = buildQueryPlan(QueryParser.parse("Q(y, w) :-S(xx, w, t), R(x, y, z), x = 1, x = xx"));
+        //  check structure of tree
+        assertTrue(op instanceof ProjectOperator);
+        assertTrue(ProjectOperator.getChildOperator() instanceof JoinOperator);
+        JoinOperator joinOperator = (JoinOperator) ProjectOperator.getChildOperator();
+//        assertTrue(joinOperator.getRightChild() instanceof ScanOperator);
+        joinOperator.dump(outputFile);
+    }
+
+    @Test
+    public void testIntepreterALL() throws Exception {
+        for (int i = 1; i <= 9; i++) {
+            String databaseDir = "data/evaluation/db";
+            String inputFile = "data/evaluation/input/query" + i + ".txt";
+            String outputFile = "data/evaluation/test_db/test_output/query" + i + ".csv";
+            evaluateCQ(databaseDir, inputFile, outputFile);
+        }
+    }
+
+//    @Test
+//    public void testIntepreter3() throws Exception {
+//        String databaseDir = "data/evaluation/db";
+//        String inputFile = "data/evaluation/input/query2.txt";
+//        String outputFile = "data/evaluation/test_db/test_output/query2.csv";
+//        evaluateCQ(databaseDir, inputFile, outputFile);
+//    }
 }
 
