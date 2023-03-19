@@ -84,7 +84,7 @@ public class SumOperator extends Operator {
                 groupKey.add(tuple.getField(varToIndexMap.get(var)));
             }
             Integer sumValue = 1;
-            Integer vIdx = 0;
+            Integer vIdx;
             for (Term term : sumTerm.getProductTerms()) {
                 if (term instanceof IntegerConstant) {
                     sumValue *= ((IntegerConstant) term).getValue();

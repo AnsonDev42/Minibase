@@ -54,7 +54,7 @@ public class SelectOperator extends Operator {
             Term left = getFieldValue(leftTuple, comparisonAtom.getTerm1(), leftTermToIndexMap);
             Term right = getFieldValue(rightTuple, comparisonAtom.getTerm2(), rightTermToIndexMap);
             if (left == null || right == null) {
-                System.out.println("Error: field value is null");
+//                System.out.println("Error: field value is null");
 //                return false; ?true;
                 throw new RuntimeException("Error: field value is null, probably bcz an unseen var in conditions");
             }
