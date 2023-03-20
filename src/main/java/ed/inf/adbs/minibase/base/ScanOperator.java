@@ -3,23 +3,27 @@ package ed.inf.adbs.minibase.base;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class ScanOperator extends Operator {
     private final String relationName;
-    private final List<String> requiredColumns;
+    private final HashSet<String> requiredColumns;
     private BufferedReader reader;
     private final String[] fieldTypes;
+    private final String[] fieldNames;
     private static FileReader fileReader;
 
     /**
      * Constructor for ScanOperator
      *
-     * @param RelationalAtom   the relation atom
-     * @param requiredColumns
+     * @param relAtom         the relation atom
+     * @param requiredColumns the required columns to avoid large tuple
      */
-    public ScanOperator(RelationalAtom relAtom, List<String> requiredColumns) throws IOException {
+    public ScanOperator(RelationalAtom relAtom, HashSet<String> requiredColumns) throws IOException {
         this.relationName = relAtom.getName();
+        this.fieldNames = relAtom.getFieldsName();
         // TODO: optimise the get FileReader by not retrieving from Catalog every time
         fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
         this.requiredColumns = requiredColumns;
@@ -68,13 +72,16 @@ public class ScanOperator extends Operator {
         try {
             String line = this.reader.readLine();
             if (line != null) {
-//            split the line by comma and remove white space
+                // split the line by comma and remove white space
                 String[] data = line.split(",");
-                Object[] fields = new Object[data.length];
+                List<Object> fieldsList = new ArrayList<>();
                 for (int i = 0; i < data.length; i++) {
-//                    System.out.println("when i = " + i + " data[i] = " + data[i] + " fieldType[i] = " + fieldTypes[i]);
-                    fields[i] = convertToTerm(data[i], this.fieldTypes[i]);  // fieldType[i] is the type of the ith field
+                    // Check if the column is required before adding it to the fields list
+                    if (requiredColumns.contains(this.fieldNames[i])) {
+                        fieldsList.add(convertToTerm(data[i], this.fieldTypes[i])); // fieldType[i] is the type of the ith field
+                    }
                 }
+                Object[] fields = fieldsList.toArray(new Object[0]);
                 Tuple currentTuple = new Tuple(fields);
                 return currentTuple;
             } else {
@@ -84,8 +91,8 @@ public class ScanOperator extends Operator {
             System.out.println("Error reading file");
             return null;
         }
-
     }
+
 
     /**
      * Reset the current location to the beginning of the file

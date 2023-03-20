@@ -3,6 +3,7 @@ package ed.inf.adbs.minibase.base;
 import ed.inf.adbs.minibase.Utils;
 
 import javax.management.RuntimeErrorException;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 
@@ -36,6 +37,25 @@ public class RelationalAtom extends Atom {
             } else {
                 RuntimeErrorException e = new RuntimeErrorException(new Error("Constant in the join condition"));
             }
+        }
+        return varNameInRelAtom;
+    }
+
+    /**
+     * get the field name in the relation atom
+     *
+     * @return the list of field name
+     */
+    public String[] getFieldsName() {
+        String[] varNameInRelAtom = new String[terms.size()];
+        int i = 0;
+        for (Term term : terms) {
+            if (term instanceof Variable) {
+                varNameInRelAtom[i] = term.toString();
+            } else {
+                RuntimeErrorException e = new RuntimeErrorException(new Error("Constant in final scanner"));
+            }
+            i++;
         }
         return varNameInRelAtom;
     }

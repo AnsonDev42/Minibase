@@ -11,7 +11,9 @@ public class QueryPlanner {
 
 
     public QueryPlanner(Query query) throws Exception {
-        operator = buildQueryPlan(query); // See algorithm inside this method
+//        operator = buildQueryPlan(query); // See algorithm inside this method
+        operator = buildQueryPlanV2(query); // See algorithm inside this method
+
     }
 
     public Operator getOperator() {
@@ -45,18 +47,19 @@ public class QueryPlanner {
             conIdx = body.size();
         }
         // STEP optimise: push down selection
-        Set<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
-
-
+        HashSet<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
+        System.out.println("V2: requiredColumns: " + requiredColumns);
         if (head.getSumAggregate() != null) {
 //            pushDownSelection(body, conIdx);
         }
 
 
         // STEP3: create join tree for relational atoms, add create selection operator if needed
-        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx, requiredColumns);
+
+        System.out.println("V2: jointTupleVarToIdx: " + jointTupleVarToIdx);
         // STEP4: add project operator if needed
-        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
+        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx, requiredColumns);
 
         if (needProject(head, jointTupleVarToIdx)) {
             root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
@@ -74,10 +77,10 @@ public class QueryPlanner {
      * @param body   preprocessed body
      * @param head   head of the query
      * @param conIdx index of the first condition atom
-     * @return Set<String> requiredColumns
+     * @return HashSet<String> requiredColumns
      */
-    public static Set<String> computeRequiredColumns(List<Atom> body, Head head, int conIdx) {
-        Set<String> requiredColumns = new HashSet<>();
+    public static HashSet<String> computeRequiredColumns(List<Atom> body, Head head, int conIdx) {
+        HashSet<String> requiredColumns = new HashSet<>();
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
@@ -100,12 +103,13 @@ public class QueryPlanner {
         for (Variable var : head.getVariables()) {
             requiredColumns.add(var.getName());
         }
-
-        head.getSumAggregate().getProductTerms().forEach(term -> {
-            if (term instanceof Variable) {
-                requiredColumns.add(((Variable) term).getName());
-            }
-        });
+        if (head.getSumAggregate() != null) {
+            head.getSumAggregate().getProductTerms().forEach(term -> {
+                if (term instanceof Variable) {
+                    requiredColumns.add(((Variable) term).getName());
+                }
+            });
+        }
         return requiredColumns;
     }
 
@@ -137,34 +141,34 @@ public class QueryPlanner {
      * @param query the query to be executed
      * @return the root operator of the query plan
      */
-    public static Operator buildQueryPlan(Query query) throws Exception {
-        Head head = query.getHead();
-        List<Atom> body = query.getBody();
-        if (body.size() == 0) {
-            throw new Exception("Query body is empty");
-        }
-        // STEP1 : remove all always true condition, return dummy operator if any (Constant)condition is always False
-        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
-            return new dummyOperator();
-        }
-        // STEP2: handle hidden condition, by extracting them and add them to the body
-        int conIdx = findAndUpdateCondition(body);
-        if (conIdx == 0) { // try to optimize for following functions to iterate either relational Atoms or condition Atoms
-            conIdx = body.size();
-        }
-        // STEP3: create join tree for relational atoms, add create selection operator if needed
-        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
-        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
-        // STEP4: add project operator if needed
-        if (jointTupleVarToIdx.size() > head.getVariables().size() && head.getSumAggregate() == null) {
-            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
-        }
-        // STEP5: add sum operator if needed
-        if (head.getSumAggregate() != null) {
-            root = new SumOperator(root, head, jointTupleVarToIdx);
-        }
-        return root;
-    }
+//    public static Operator buildQueryPlan(Query query) throws Exception {
+//        Head head = query.getHead();
+//        List<Atom> body = query.getBody();
+//        if (body.size() == 0) {
+//            throw new Exception("Query body is empty");
+//        }
+//        // STEP1 : remove all always true condition, return dummy operator if any (Constant)condition is always False
+//        if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
+//            return new dummyOperator();
+//        }
+//        // STEP2: handle hidden condition, by extracting them and add them to the body
+//        int conIdx = findAndUpdateCondition(body);
+//        if (conIdx == 0) { // try to optimize for following functions to iterate either relational Atoms or condition Atoms
+//            conIdx = body.size();
+//        }
+//        // STEP3: create join tree for relational atoms, add create selection operator if needed
+//        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx);
+//        Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx);
+//        // STEP4: add project operator if needed
+//        if (jointTupleVarToIdx.size() > head.getVariables().size() && head.getSumAggregate() == null) {
+//            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+//        }
+//        // STEP5: add sum operator if needed
+//        if (head.getSumAggregate() != null) {
+//            root = new SumOperator(root, head, jointTupleVarToIdx);
+//        }
+//        return root;
+//    }
 
 
     /**
@@ -174,7 +178,7 @@ public class QueryPlanner {
      * @param conIdx index of the first condition in the body
      * @return map of variable name to index in final join tuple
      */
-    public static HashMap<String, Integer> createJointTupleVarToIdx(List<Atom> body, int conIdx) {
+    public static HashMap<String, Integer> createJointTupleVarToIdx(List<Atom> body, int conIdx, HashSet<String> requiredColumns) {
         HashMap<String, Integer> varIndexInJoinTupleMap = new HashMap<>();
         int index = 0;
         if (conIdx == 0) {
@@ -182,9 +186,12 @@ public class QueryPlanner {
         }
         for (int i = 0; i < conIdx; i++) {
             RelationalAtom atom = (RelationalAtom) body.get(i);
-            for (Term term : atom.getTerms()) {
-                if (term instanceof Variable) {
-                    varIndexInJoinTupleMap.put(((Variable) term).getName(), index);
+            String[] fieldNames = atom.getFieldsName();
+            System.out.println("fieldNames: " + Arrays.toString(fieldNames));
+            for (String fieldName : fieldNames) {
+                // Only add the field to the map if it's in the requiredColumns set
+                if (requiredColumns.contains(fieldName)) {
+                    varIndexInJoinTupleMap.put(fieldName, index);
                     index++;
                 }
             }
@@ -202,7 +209,7 @@ public class QueryPlanner {
      * @return root of join tree
      * @throws IOException
      */
-    public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx, HashMap<String, Integer> jointTupleVarToIdx) throws IOException {
+    public static Operator createDeepLeftJoinTree(List<Atom> body, int conIdx, HashMap<String, Integer> jointTupleVarToIdx, HashSet<String> requiredColumns) throws IOException {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
@@ -216,9 +223,9 @@ public class QueryPlanner {
             }
             RelationalAtom relAtom = (RelationalAtom) body.get(i);
             if (selMap.get(i) != null && selMap.get(i).isEmpty()) {
-                operators.add(new ScanOperator(relAtom.getName(), requiredColumns));
+                operators.add(new ScanOperator(relAtom, requiredColumns));
             } else {
-                operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i))));
+                operators.add(new SelectOperator(relAtom, new ArrayList<>(selMap.get(i)), requiredColumns));
             }
         }
         // Create deep left join tree

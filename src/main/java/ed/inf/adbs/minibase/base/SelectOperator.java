@@ -2,6 +2,7 @@ package ed.inf.adbs.minibase.base;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 public class SelectOperator extends Operator {
@@ -12,7 +13,7 @@ public class SelectOperator extends Operator {
     private final HashMap<String, Integer> termToIndexMap;
 
 
-    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> conditions) throws IOException {
+    public SelectOperator(RelationalAtom relationalAtom, List<ComparisonAtom> conditions, HashSet requiredColumns) throws IOException {
         this.relationalAtom = relationalAtom;
         this.childScanOperator = new ScanOperator(relationalAtom, requiredColumns);
         this.conditions = conditions;
