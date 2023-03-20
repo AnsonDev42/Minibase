@@ -40,6 +40,8 @@ public class SumOperator extends Operator {
      */
     @Override
     public Tuple getNextTuple() throws IOException {
+        System.out.println("v2 var to index map" + varToIndexMap);
+
         //STEP1 : compute sum for each group
         if (!sumComputed) {
             computeSum();
@@ -77,26 +79,30 @@ public class SumOperator extends Operator {
      */
     public void computeSum() throws IOException {
         Tuple tuple = child.getNextTuple();
+        System.out.println("checking tuple" + tuple);
+        System.out.println("checking tuple from which type of child" + child.getClass());
         while (tuple != null) {
             // create group key for unique groups
             List<Object> groupKey = new ArrayList<>();
             for (String var : groupByVars) {
                 groupKey.add(tuple.getField(varToIndexMap.get(var)));
             }
-            Integer sumValue = 1;
+            Integer productValue = 1;
             Integer vIdx;
             for (Term term : sumTerm.getProductTerms()) {
                 if (term instanceof IntegerConstant) {
-                    sumValue *= ((IntegerConstant) term).getValue();
+                    productValue *= ((IntegerConstant) term).getValue();
                 } else if (term instanceof Variable) {
                     vIdx = varToIndexMap.get(((Variable) term).getName());
                     if (vIdx != null) {
-                        sumValue *= ((IntegerConstant) tuple.getField(vIdx)).getValue();
+                        // vIdx is 1
+                        System.out.println("vIdx is " + vIdx + " " + tuple);
+                        productValue *= ((IntegerConstant) tuple.getField(vIdx)).getValue();
                     }
                 }
             }
             groups.putIfAbsent(groupKey, 0); // solve null pointer exception
-            groups.put(groupKey, groups.get(groupKey) + sumValue);
+            groups.put(groupKey, groups.get(groupKey) + productValue);
             tuple = child.getNextTuple();
         }
     }

@@ -10,14 +10,17 @@ public class ProjectOperator extends Operator {
     private final Map<Term, Integer> varIndexMap;
     private final Set<Tuple> projectedTuples;
     private final HashMap<String, Integer> jointTupleVarToIdx;
+    private final boolean distinct;
 //    private final RelationalAtom relationalAtom;
 
-    public ProjectOperator(Operator childOperator, List<Variable> projectedVars, HashMap<String, Integer> jointTupleVarToIdx) {
+    public ProjectOperator(Operator childOperator, List<Variable> projectedVars, HashMap<String, Integer> jointTupleVarToIdx, boolean distinct) {
         ProjectOperator.childOperator = childOperator;
         this.projectedVars = projectedVars;
         this.projectedTuples = new HashSet<>();
         this.jointTupleVarToIdx = jointTupleVarToIdx;
         this.varIndexMap = createProjectionMap();
+        this.distinct = distinct;
+        this.
     }
 
     public static Operator getChildOperator() {
@@ -81,12 +84,15 @@ public class ProjectOperator extends Operator {
             }
             // Check if the projected tuple has already been seen before
             projectedTuple = new Tuple(fields);
-            if (!projectedTuples.contains(projectedTuple)) {
-                //TODO: check if this is correct since pigeonhole principle
-                projectedTuples.add(projectedTuple);
-                return projectedTuple;
+            if (distinct) {
+                if (!projectedTuples.contains(projectedTuple)) {
+                    projectedTuples.add(projectedTuple);
+                    return projectedTuple;
+                } else {
+                    System.out.println("find Duplicate tuple, not output to file: " + projectedTuple);
+                }
             } else {
-                System.out.println("Duplicate tuple: " + projectedTuple);
+                return projectedTuple;
             }
         }
         return null;

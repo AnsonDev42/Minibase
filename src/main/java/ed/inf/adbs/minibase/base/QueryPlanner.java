@@ -49,26 +49,48 @@ public class QueryPlanner {
         // STEP optimise: push down selection
         HashSet<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
         System.out.println("V2: requiredColumns: " + requiredColumns);
-        if (head.getSumAggregate() != null) {
-//            pushDownSelection(body, conIdx);
-        }
-
 
         // STEP3: create join tree for relational atoms, add create selection operator if needed
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx, requiredColumns);
 
         System.out.println("V2: jointTupleVarToIdx: " + jointTupleVarToIdx);
-        // STEP4: add project operator if needed
         Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx, requiredColumns);
+        // STEP4: create projected variables list( include vars in SumAgg if SumAgg existed)
+        List<Variable> projectedVars = getProjectedVars(head, jointTupleVarToIdx);
+        System.out.println("V2: projectedVars: " + projectedVars);
+        // STEP5: add project operator if needed
 
         if (needProject(head, jointTupleVarToIdx)) {
-            root = new ProjectOperator(root, head.getVariables(), jointTupleVarToIdx);
+            if (head.getSumAggregate() != null) {
+                root = new ProjectOperator(root, projectedVars, jointTupleVarToIdx, false);
+            } else {
+                root = new ProjectOperator(root, projectedVars, jointTupleVarToIdx, true);
+            }
         }
-        // STEP5: add sum operator if needed
+        // STEP6: add sum operator if needed
         if (head.getSumAggregate() != null) {
             root = new SumOperator(root, head, jointTupleVarToIdx);
         }
         return root;
+    }
+
+    /**
+     * return a list of projected variables including variables in sum aggregate
+     *
+     * @param head
+     * @param jointTupleVarToIdx
+     * @return List<Term> projectedVars
+     */
+    public static List<Variable> getProjectedVars(Head head, HashMap<String, Integer> jointTupleVarToIdx) {
+        List<Variable> projectedVars = new ArrayList<>(head.getVariables());
+        if (head.getSumAggregate() != null) {
+            for (Term term : head.getSumAggregate().getProductTerms()) {
+                if (term instanceof Variable && !projectedVars.contains(term)) {
+                    projectedVars.add((Variable) term);
+                }
+            }
+        }
+        return projectedVars;
     }
 
     /**
