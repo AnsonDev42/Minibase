@@ -52,37 +52,37 @@ public class MinibaseTest {
         assertEquals(R_schema, catalog.getSchema("R"));
     }
 
-    @Test
-    public void testScanOperator() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
-        ScanOperator scanOperator = new ScanOperator("R");
-        Tuple tuple = scanOperator.getNextTuple();
-
-        String s = "[1, 9, 'adbs']";
-        assertEquals(s, tuple.toString());
-        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
-        Tuple tuple2 = scanOperator.getNextTuple();
-        String s2 = "[2, 7, 'anlp']";
-        assertEquals(s2, tuple2.toString());
-    }
-
-    @Test
-    public void testScanOperatorRESET() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
-        ScanOperator scanOperator = new ScanOperator("R");
-        Tuple tuple = scanOperator.getNextTuple();
-        String s = "[1, 9, 'adbs']";
-        assertEquals(s, tuple.toString());
-        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
-        Tuple tuple2 = scanOperator.getNextTuple();
-        String s2 = "[2, 7, 'anlp']";
-        assertEquals(s2, tuple2.toString());
-        scanOperator.reset();
-        Tuple tuple3 = scanOperator.getNextTuple();
-        assertEquals(s, tuple3.toString());
-    }
+//    @Test
+//    public void testScanOperator() throws IOException {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        catalog.initialize();
+//        ScanOperator scanOperator = new ScanOperator("R", requiredColumns);
+//        Tuple tuple = scanOperator.getNextTuple();
+//
+//        String s = "[1, 9, 'adbs']";
+//        assertEquals(s, tuple.toString());
+//        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
+//        Tuple tuple2 = scanOperator.getNextTuple();
+//        String s2 = "[2, 7, 'anlp']";
+//        assertEquals(s2, tuple2.toString());
+//    }
+//
+//    @Test
+//    public void testScanOperatorRESET() throws IOException {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        catalog.initialize();
+//        ScanOperator scanOperator = new ScanOperator("R", requiredColumns);
+//        Tuple tuple = scanOperator.getNextTuple();
+//        String s = "[1, 9, 'adbs']";
+//        assertEquals(s, tuple.toString());
+//        assertTrue(isSameTerm((Term) tuple.getField(0), new IntegerConstant(1)));
+//        Tuple tuple2 = scanOperator.getNextTuple();
+//        String s2 = "[2, 7, 'anlp']";
+//        assertEquals(s2, tuple2.toString());
+//        scanOperator.reset();
+//        Tuple tuple3 = scanOperator.getNextTuple();
+//        assertEquals(s, tuple3.toString());
+//    }
 
 
     @Test
@@ -216,8 +216,8 @@ public class MinibaseTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q(x, y, z) :- R(a, b, c), S(x, y, z), a=z");
         List<Atom> body = query.getBody();
-        ScanOperator leftChild = new ScanOperator(((RelationalAtom) body.get(0)).getName());
-        ScanOperator rightChild = new ScanOperator(((RelationalAtom) body.get(1)).getName());
+        ScanOperator leftChild = new ScanOperator(((RelationalAtom) body.get(0)).getName(), requiredColumns);
+        ScanOperator rightChild = new ScanOperator(((RelationalAtom) body.get(1)).getName(), requiredColumns);
         List<ComparisonAtom> joinConditions = Collections.singletonList((ComparisonAtom) body.get(2));
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, 2);
 

@@ -69,7 +69,11 @@ public class QueryPlanner {
         }
         // STEP6: add sum operator if needed
         if (head.getSumAggregate() != null) {
-            root = new SumOperator(root, head, jointTupleVarToIdx);
+            if (!(root instanceof ProjectOperator)) {
+                throw new Exception("Sum operator must be after project operator");
+            }
+//            root.dump("V2: before sum");
+            root = new SumOperator(root, head);
         }
         return root;
     }

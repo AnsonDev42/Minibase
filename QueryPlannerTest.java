@@ -253,7 +253,7 @@ public class QueryPlannerTest {
     public void testScanOperatorDUMP() throws IOException {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         catalog.initialize();
-        ScanOperator scanOperator = new ScanOperator("R");
+        ScanOperator scanOperator = new ScanOperator("R", requiredColumns);
         Tuple tuple = scanOperator.getNextTuple();
         String s = "[1, 9, 'adbs']";
         assertEquals(s, tuple.toString());
@@ -281,7 +281,7 @@ public class QueryPlannerTest {
         Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
         Query query = QueryParser.parse("Q( SUM(x) ) :- R(x, y, z)");
         // Set up the test data and expected results
-        ScanOperator child = new ScanOperator("R");
+        ScanOperator child = new ScanOperator("R", requiredColumns);
         HashMap<String, Integer> varToIndexMap = new HashMap<>();
         varToIndexMap.put("x", 0);
         varToIndexMap.put("y", 1);

@@ -40,7 +40,6 @@ public class JoinOperator extends Operator {
         Tuple leftTuple;
         Tuple rightTuple;
         // outer loop iterates over left child
-        System.out.println("HERE in the end");
         while (true) {
             // If the current left tuple is null, move to the next left tuple
             if (currentLeftTuple == null) {

@@ -7,7 +7,7 @@ public class ProjectOperator extends Operator {
 
     private static Operator childOperator;
     private final List<Variable> projectedVars;
-    private final Map<Term, Integer> varIndexMap;
+    private static Map<Term, Integer> varIndexMap;
     private final Set<Tuple> projectedTuples;
     private final HashMap<String, Integer> jointTupleVarToIdx;
     private final boolean distinct;
@@ -18,10 +18,21 @@ public class ProjectOperator extends Operator {
         this.projectedVars = projectedVars;
         this.projectedTuples = new HashSet<>();
         this.jointTupleVarToIdx = jointTupleVarToIdx;
-        this.varIndexMap = createProjectionMap();
+        varIndexMap = createProjectionMap();
         this.distinct = distinct;
-        this.
     }
+
+    public Map<Term, Integer> getVarIndexMap() {
+        return varIndexMap;
+    }
+
+    /*
+    return the projected vars for creating the dictionary in SumOperator later
+     */
+    public List<Variable> getProjectedVars() {
+        return projectedVars;
+    }
+
 
     public static Operator getChildOperator() {
         return childOperator;
@@ -33,7 +44,7 @@ public class ProjectOperator extends Operator {
      * @return a map of projected variables to their corresponding index in the original tuples
      */
     public Map<Term, Integer> createProjectionMap() {
-//        THIS has been done, so no need to do it again
+//        THIS has been done in jointTupleVarToIdx, so no need to do it again
         //1. build a map of var to index in the table e.g. R(x,y,z)  x -> 0, y -> 1, z -> 2
 //        HashMap jointTupleVarToIdx = new HashMap<>();
 //        List<Term> terms = this.relationalAtom.getTerms();
