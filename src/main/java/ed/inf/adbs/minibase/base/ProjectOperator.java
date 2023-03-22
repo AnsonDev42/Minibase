@@ -44,16 +44,10 @@ public class ProjectOperator extends Operator {
      * @return a map of projected variables to their corresponding index in the original tuples
      */
     public Map<Term, Integer> createProjectionMap() {
-//        THIS has been done in jointTupleVarToIdx, so no need to do it again
         //1. build a map of var to index in the table e.g. R(x,y,z)  x -> 0, y -> 1, z -> 2
-//        HashMap jointTupleVarToIdx = new HashMap<>();
-//        List<Term> terms = this.relationalAtom.getTerms();
-//        for (int i = 0; i < terms.size(); i++) {
-//            if (terms.get(i) instanceof Variable) {
-//                jointTupleVarToIdx.put(terms.get(i), i);
-//            }
-//        }
-        System.out.println("jointTupleVarToIdx: " + jointTupleVarToIdx);
+        //        THIS has been done in jointTupleVarToIdx, so no need to do it again
+
+
         //2. build a map of var to index in the query e.g. Q(y,x)  y -> 1, x -> 0
         HashMap<Term, Integer> termToIndexMap = new HashMap<>();
         for (Term projectedVar : projectedVars) {
@@ -99,9 +93,8 @@ public class ProjectOperator extends Operator {
                 if (!projectedTuples.contains(projectedTuple)) {
                     projectedTuples.add(projectedTuple);
                     return projectedTuple;
-                } else {
-                    System.out.println("find Duplicate tuple, not output to file: " + projectedTuple);
                 }
+                //else { System.out.println("find Duplicate tuple, not output to file: " + projectedTuple);}
             } else {
                 return projectedTuple;
             }

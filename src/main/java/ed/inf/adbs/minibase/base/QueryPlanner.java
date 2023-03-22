@@ -11,8 +11,7 @@ public class QueryPlanner {
 
 
     public QueryPlanner(Query query) throws Exception {
-//        operator = buildQueryPlan(query); // See algorithm inside this method
-        operator = buildQueryPlanV2(query); // See algorithm inside this method
+        operator = buildQueryPlan(query); // See algorithm inside this method
 
     }
 
@@ -28,7 +27,7 @@ public class QueryPlanner {
      * @return
      * @throws Exception
      */
-    public static Operator buildQueryPlanV2(Query query) throws Exception {
+    public static Operator buildQueryPlan(Query query) throws Exception {
         Head head = query.getHead();
         List<Atom> body = query.getBody();
         if (body.size() == 0) {
@@ -48,16 +47,11 @@ public class QueryPlanner {
         }
         // STEP optimise: push down selection
         HashSet<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
-        System.out.println("V2: requiredColumns: " + requiredColumns);
-
         // STEP3: create join tree for relational atoms, add create selection operator if needed
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx, requiredColumns);
-
-        System.out.println("V2: jointTupleVarToIdx: " + jointTupleVarToIdx);
         Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx, requiredColumns);
         // STEP4: create projected variables list( include vars in SumAgg if SumAgg existed)
         List<Variable> projectedVars = getProjectedVars(head, jointTupleVarToIdx);
-        System.out.println("V2: projectedVars: " + projectedVars);
         // STEP5: add project operator if needed
 
         if (needProject(head, jointTupleVarToIdx)) {
@@ -72,7 +66,6 @@ public class QueryPlanner {
             if (!(root instanceof ProjectOperator)) {
                 throw new Exception("Sum operator must be after project operator");
             }
-//            root.dump("V2: before sum");
             root = new SumOperator(root, head);
         }
         return root;
@@ -213,7 +206,6 @@ public class QueryPlanner {
         for (int i = 0; i < conIdx; i++) {
             RelationalAtom atom = (RelationalAtom) body.get(i);
             String[] fieldNames = atom.getFieldsName();
-            System.out.println("fieldNames: " + Arrays.toString(fieldNames));
             for (String fieldName : fieldNames) {
                 // Only add the field to the map if it's in the requiredColumns set
                 if (requiredColumns.contains(fieldName)) {
@@ -239,8 +231,6 @@ public class QueryPlanner {
         ArrayList<HashMap<Integer, HashSet<ComparisonAtom>>> conMaps = createTwoConMap(body, conIdx);
         HashMap<Integer, HashSet<ComparisonAtom>> selMap = conMaps.get(0);
         HashMap<Integer, HashSet<ComparisonAtom>> joinMap = conMaps.get(1);
-//        System.out.println("selMap: " + selMap);
-//        System.out.println("joinMap: " + joinMap);
         // Create initial operators for each relAtoms based on if they have selection conditions
         ArrayList<Operator> operators = new ArrayList<>();
         for (int i = 0; i < conIdx; i++) {
@@ -266,14 +256,8 @@ public class QueryPlanner {
             HashSet<ComparisonAtom> intersection = new HashSet<>(leftConditionPool);
             intersection.retainAll(rightChildConditions);
             Operator rightChild = operators.get(i);
-            root = new JoinOperator(root, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(i), new ArrayList<>(intersection));
-            if (rightChild instanceof JoinOperator) {
-                throw new IllegalStateException("Right child should not be a JoinOperator");
-            }
+            root = new JoinOperator(root, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(i), new ArrayList<>(intersection), requiredColumns);
             JoinOperator jr_root = (JoinOperator) root;
-            if (jr_root.getRightChild() instanceof JoinOperator) {
-                throw new IllegalStateException("Right child should not be a JoinOperator");
-            }
             leftConditionPool.addAll(rightChildConditions); // Update leftConditionPool
         }
         return root;

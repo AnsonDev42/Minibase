@@ -17,8 +17,18 @@ public class SelectOperator extends Operator {
         this.relationalAtom = relationalAtom;
         this.childScanOperator = new ScanOperator(relationalAtom, requiredColumns);
         this.conditions = conditions;
-        this.termToIndexMap = createTermToIndexMap(relationalAtom);
+        this.termToIndexMap = this.childScanOperator.getReturnedTermToIndexMap();
     }
+
+    /**
+     * returing the pushdown-ed mapping of the terms to the index of the tuple
+     *
+     * @return the pushdown-ed mapping of the terms to the index of the tuple
+     */
+    public HashMap<String, Integer> getReturnedTermToIndexMap() {
+        return termToIndexMap;
+    }
+
 
     /**
      * Get the relation name
@@ -75,15 +85,17 @@ public class SelectOperator extends Operator {
      * @param relationalAtom the relational atom this operator
      * @return a map from variable name to index
      */
-    public static HashMap<String, Integer> createTermToIndexMap(RelationalAtom relationalAtom) {
-//        System.out.println("Relation :" + relationalAtom.toString());
+    public static HashMap<String, Integer> createTermToIndexMap(RelationalAtom relationalAtom, HashSet requiredColumns) {
         if (relationalAtom.getTerms().size() != Catalog.getInstance(null).getSchema(relationalAtom.getName()).length) {
             throw new IllegalArgumentException("The number of terms in the relational atom does not match the schema");
         }
         HashMap<String, Integer> map = new HashMap<>();
+        int idx = 0;
         for (int i = 0; i < relationalAtom.getTerms().size(); i++) {
-//            System.out.println("put now:" + relationalAtom.getTerms().get(i).toString());
-            map.put(relationalAtom.getTerms().get(i).toString(), i);
+            if (requiredColumns.contains(relationalAtom.getTerms().get(i).toString())) {
+                map.put(relationalAtom.getTerms().get(i).toString(), idx);
+                idx++;
+            }
         }
         return map;
     }
@@ -100,17 +112,11 @@ public class SelectOperator extends Operator {
      */
     private static Term getFieldValue(Tuple tuple, Term term, HashMap<String, Integer> termToIndexMap) {
         if (tuple == null) {
-            System.out.println("Error: tuple is null");
-            throw new RuntimeException("Error: variable is null");
-//            return null;
+            throw new RuntimeException("Error: tuple is null");
         }
         if (null != termToIndexMap.get(term.toString())) {
-            String x = term.toString();
-//            System.out.println("termToIndexMap.get(x)" + termToIndexMap.get(x));
-            return (Term) tuple.getField(termToIndexMap.get(x));
+            return (Term) tuple.getField(termToIndexMap.get(term.toString()));
         }
-//        System.out.println("current tuple" + tuple);
-//        System.out.println("term" + term);
         return term; // if the term is a constant, return it directly
     }
 

@@ -4,8 +4,11 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+
+import static ed.inf.adbs.minibase.base.SelectOperator.createTermToIndexMap;
 
 public class ScanOperator extends Operator {
     private final String relationName;
@@ -14,6 +17,7 @@ public class ScanOperator extends Operator {
     private final String[] fieldTypes;
     private final String[] fieldNames;
     private static FileReader fileReader;
+    private final HashMap<String, Integer> returnedTermToIndexMap;
 
     /**
      * Constructor for ScanOperator
@@ -30,7 +34,18 @@ public class ScanOperator extends Operator {
         this.reader = new BufferedReader(fileReader);
         this.reader.mark(0);
         this.fieldTypes = Catalog.getInstance(null).getSchema(relationName);
+        this.returnedTermToIndexMap = createTermToIndexMap(relAtom, requiredColumns);
     }
+
+    /**
+     * returing the pushdown-ed mapping of the terms to the index of the tuple
+     *
+     * @return the pushdown-ed mapping of the terms to the index of the tuple
+     */
+    public HashMap<String, Integer> getReturnedTermToIndexMap() {
+        return returnedTermToIndexMap;
+    }
+
 
     /**
      * Get the relation name
@@ -106,7 +121,7 @@ public class ScanOperator extends Operator {
             fileReader = new FileReader(Catalog.getInstance(null).getDataFileName(relationName));
             this.reader = new BufferedReader(fileReader);
             this.reader.mark(0);
-            System.out.println(" Reset successfully");
+//            System.out.println(" Reset successfully");
         }
     }
 }

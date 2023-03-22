@@ -11,7 +11,6 @@ public class SumOperator extends Operator {
     private final SumAggregate sumTerm;
     private boolean sumComputed = false;
     private Iterator<Map.Entry<List<Object>, Integer>> groupsIterator;
-    private final Map<Term, Integer> varToIndexMap;
     private final Map<Term, Integer> projectedVarToIndexMap;
 
 
@@ -24,11 +23,8 @@ public class SumOperator extends Operator {
     public SumOperator(Operator child, Head head) {
         this.child = child;
         this.groupByVars = head.getVariables();
-        System.out.println("v2 group by vars" + groupByVars);
         this.sumTerm = head.getSumAggregate();
-        this.varToIndexMap = ((ProjectOperator) child).getVarIndexMap(); // child's var to index map for obtained tuples
         this.projectedVarToIndexMap = createProjectedVarToIndexMap(); // final projected var to index map
-        System.out.println("v2 projected var to index map" + projectedVarToIndexMap);
     }
 
     private Map<Term, Integer> createProjectedVarToIndexMap() {
@@ -95,8 +91,6 @@ public class SumOperator extends Operator {
      */
     public void computeSum() throws IOException {
         Tuple tuple = child.getNextTuple();
-        System.out.println("checking tuple" + tuple);
-        System.out.println("checking tuple from which type of child" + child.getClass());
         while (tuple != null) {
             // create group key for unique groups
             List<Object> groupKey = new ArrayList<>();
@@ -105,40 +99,30 @@ public class SumOperator extends Operator {
                 groupKey.add("EMPTY_GROUP");
             } else {
                 for (Variable var : groupByVars) {
-                    System.out.println("v2 checking var HERE" + var);
-                    System.out.println("v2 checking projectedVarToIndexMap" + projectedVarToIndexMap);
                     groupKey.add(tuple.getField(projectedVarToIndexMap.get(var)));
                 }
             }
-            System.out.println("v3 checking groupKey" + groupKey);
             int productValue = 1;
             Integer vIdx;
             Boolean changedProduct = false;
             for (Term term : sumTerm.getProductTerms()) {
-                System.out.println("v2 checking term class" + term.getClass());
+//                System.out.println("v2 checking term class" + term.getClass());
                 if (term instanceof IntegerConstant) {
                     productValue *= ((IntegerConstant) term).getValue();
                     changedProduct = true;
                 } else if (term instanceof Variable) {
                     vIdx = projectedVarToIndexMap.get(term);
-                    System.out.println("vIdx is " + vIdx);
                     if (vIdx != null) {
-                        // vIdx is 1
-                        System.out.println("vIdx is " + vIdx + " " + tuple);
                         productValue *= ((IntegerConstant) tuple.getField(vIdx)).getValue();
                         changedProduct = true;
                     }
                 }
             }
-            System.out.println("v2 checking groupKey " + groupKey);
-            System.out.println("v2 checking productValue: " + productValue);
-            System.out.println("v2 checking groups" + groups);
             groups.putIfAbsent(groupKey, 0); // solve null pointer exception
             if (changedProduct) {
                 groups.put(groupKey, groups.get(groupKey) + productValue);
             }
             tuple = child.getNextTuple();
-            System.out.println("v2 checking tuple" + tuple);
         }
     }
 

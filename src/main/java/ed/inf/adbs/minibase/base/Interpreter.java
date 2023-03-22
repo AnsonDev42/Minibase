@@ -14,10 +14,12 @@ public class Interpreter {
     public Interpreter(String inputFile, String outputFile) throws Exception {
         this.query_file = inputFile;
         this.outputFile = outputFile;
+
         query = QueryParser.parse(Paths.get(query_file));
         queryPlanner = new QueryPlanner(query);
         Operator rootOperator = queryPlanner.getOperator();
-        rootOperator.dump(outputFile);
+        Interpreter.rootOperator = rootOperator;
+//        rootOperator.dump(outputFile); //for debugging
     }
 
     public void dump() {

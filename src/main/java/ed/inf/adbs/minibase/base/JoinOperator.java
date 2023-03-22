@@ -2,6 +2,7 @@ package ed.inf.adbs.minibase.base;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 import static ed.inf.adbs.minibase.base.SelectOperator.createTermToIndexMap;
@@ -19,12 +20,13 @@ public class JoinOperator extends Operator {
 
 
     public JoinOperator(Operator leftChild, Operator rightChild, HashMap<String, Integer> leftTermToIndexMap,
-                        RelationalAtom RightRelAtom, List joinConditions) {
+                        RelationalAtom RightRelAtom, List joinConditions, HashSet requiredColumns) {
         this.leftChild = leftChild;
         this.rightChild = rightChild;
         this.joinConditions = joinConditions;
         this.leftTermToIndexMap = leftTermToIndexMap; // its global map already, no need to create again
-        this.rightTermToIndexMap = createTermToIndexMap(RightRelAtom); // TODO: can be optimized using offset from leftTermToIndexMap
+        this.rightTermToIndexMap = rightChild.getReturnedTermToIndexMap(); // small hack since right can't be join operator
+        assert (this.rightTermToIndexMap != null);
     }
 
     public Operator getLeftChild() {
@@ -55,8 +57,10 @@ public class JoinOperator extends Operator {
 
             while ((rightTuple = rightChild.getNextTuple()) != null) {
                 if (passConditions(currentLeftTuple, rightTuple, joinConditions, leftTermToIndexMap, rightTermToIndexMap)) {
+//                    System.out.println("Joininged " + Tuple.join(currentLeftTuple, rightTuple));
                     return Tuple.join(currentLeftTuple, rightTuple);
                 }
+//                else {System.out.println("Not Joined " + Tuple.join(currentLeftTuple, rightTuple));}
             }
 
             // If there are no more right tuples, set the current left tuple to null
