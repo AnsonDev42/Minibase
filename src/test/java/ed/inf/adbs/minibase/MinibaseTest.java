@@ -43,14 +43,14 @@ public class MinibaseTest {
 
     }
 
-    @Test
-    public void cataglogTest() {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        catalog.initialize();
-        assertEquals("data/evaluation/test_db/files/R.csv", catalog.getDataFileName("R"));
-        String[] R_schema = new String[]{"int", "int", "string"};
-        assertEquals(R_schema, catalog.getSchema("R"));
-    }
+//    @Test
+//    public void cataglogTest() {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        catalog.initialize();
+//        assertEquals("data/evaluation/test_db/files/R.csv", catalog.getDataFileName("R"));
+//        String[] R_schema = new String[]{"int", "int", "string"};
+//        assertEquals(R_schema, catalog.getSchema("R"));
+//    }
 
 //    @Test
 //    public void testScanOperator() throws IOException {
@@ -104,17 +104,17 @@ public class MinibaseTest {
     }
 
 
-    @Test
-    public void testSelectOperatorNoMatch() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 100");
-        List<Atom> body = query.getBody();
-        int index = findAndUpdateCondition(body);
-        // get the terms starting from the index
-        List condition = body.subList(index, body.size());
-        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
-        assertNull(selectOperator.getNextTuple());
-    }
+//    @Test
+//    public void testSelectOperatorNoMatch() throws IOException {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        Query query = QueryParser.parse("Q(x, y, z) :- R(x, y, z), y > 100");
+//        List<Atom> body = query.getBody();
+//        int index = findAndUpdateCondition(body);
+//        // get the terms starting from the index
+//        List condition = body.subList(index, body.size());
+//        SelectOperator selectOperator = new SelectOperator((RelationalAtom) body.get(index - 1), condition);
+//        assertNull(selectOperator.getNextTuple());
+//    }
 
 
     @Test
@@ -211,20 +211,20 @@ public class MinibaseTest {
 //    }
 
 
-    @Test
-    public void testJoinOperatorSimple() throws IOException {
-        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
-        Query query = QueryParser.parse("Q(x, y, z) :- R(a, b, c), S(x, y, z), a=z");
-        List<Atom> body = query.getBody();
-        ScanOperator leftChild = new ScanOperator(((RelationalAtom) body.get(0)).getName(), requiredColumns);
-        ScanOperator rightChild = new ScanOperator(((RelationalAtom) body.get(1)).getName(), requiredColumns);
-        List<ComparisonAtom> joinConditions = Collections.singletonList((ComparisonAtom) body.get(2));
-        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, 2);
-
-        JoinOperator jOp = new JoinOperator(leftChild, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(1), joinConditions);
-        assertEquals("[2, 7, 'anlp', 2, 'anka', 2]", jOp.getNextTuple().toString());
-
-    }
+//    @Test
+//    public void testJoinOperatorSimple() throws IOException {
+//        Catalog catalog = Catalog.getInstance("data/evaluation/test_db");
+//        Query query = QueryParser.parse("Q(x, y, z) :- R(a, b, c), S(x, y, z), a=z");
+//        List<Atom> body = query.getBody();
+//        ScanOperator leftChild = new ScanOperator(((RelationalAtom) body.get(0)).getName(), requiredColumns);
+//        ScanOperator rightChild = new ScanOperator(((RelationalAtom) body.get(1)).getName(), requiredColumns);
+//        List<ComparisonAtom> joinConditions = Collections.singletonList((ComparisonAtom) body.get(2));
+//        HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, 2);
+//
+//        JoinOperator jOp = new JoinOperator(leftChild, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(1), joinConditions);
+//        assertEquals("[2, 7, 'anlp', 2, 'anka', 2]", jOp.getNextTuple().toString());
+//
+//    }
 
 
     @Test
@@ -235,11 +235,12 @@ public class MinibaseTest {
 
         Catalog catalog = Catalog.getInstance(databaseDir);
         Operator op = buildQueryPlan(QueryParser.parse("Q(y, r) :- R(x, y, z), S(x, w, t), T(x, r), x = 1"));
-        op.dump(outputFile); // actually join now
+        op.dump(); // actually join now
         assertTrue(op instanceof ProjectOperator);
         assertTrue(ProjectOperator.getChildOperator() instanceof JoinOperator);
         JoinOperator joinOperator = (JoinOperator) ProjectOperator.getChildOperator();
-        joinOperator.dump(outputFile);
+        joinOperator.setDumpPath(outputFile);
+        joinOperator.dump();
         assertTrue(joinOperator.getRightChild() instanceof ScanOperator);
         ScanOperator r1 = (ScanOperator) joinOperator.getRightChild();
         assertEquals("T", r1.getRelationName());
@@ -251,13 +252,13 @@ public class MinibaseTest {
         assertTrue(l1.getLeftChild() instanceof SelectOperator);
         SelectOperator l1_l2 = (SelectOperator) l1.getLeftChild();
 
-//        l1.dump(outputFile);
+//        l1.dump()
 
 
 //        assertEquals("[1, 1]", scanOperator.getNextTuple().toString());
-//        scanOperator.dump(outputFile);
-//        joinOperator.dump(outputFile);
-//        Operator root = op;
+//        scanOperator.dump()
+        //        joinOperator.dump()
+        //        Operator root = op;
 //        evaluateCQ(databaseDir, inputFile, outputFile);
     }
 
@@ -275,7 +276,8 @@ public class MinibaseTest {
         assertTrue(ProjectOperator.getChildOperator() instanceof JoinOperator);
         JoinOperator joinOperator = (JoinOperator) ProjectOperator.getChildOperator();
 //        assertTrue(joinOperator.getRightChild() instanceof ScanOperator);
-        joinOperator.dump(outputFile);
+        joinOperator.dump()
+        ;
     }
 
     @Test

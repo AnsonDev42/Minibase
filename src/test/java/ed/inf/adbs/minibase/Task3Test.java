@@ -17,7 +17,7 @@ public class Task3Test {
     }
 
     @Test
-    public void testSingleQuery() throws Exception {
+    public void testSingleQuery1() throws Exception {
         int i = 8;
         String databaseDir = "data/evaluation/db";
         String inputFile = "data/evaluation/input/query" + i + ".txt";

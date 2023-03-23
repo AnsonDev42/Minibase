@@ -19,12 +19,13 @@ public class Interpreter {
         queryPlanner = new QueryPlanner(query);
         Operator rootOperator = queryPlanner.getOperator();
         Interpreter.rootOperator = rootOperator;
+        rootOperator.setDumpPath(outputFile);
 //        rootOperator.dump(outputFile); //for debugging
     }
 
     public void dump() {
         try {
-            rootOperator.dump(outputFile);
+            rootOperator.dump();
         } catch (Exception e) {
             System.out.println("Dump complete. check output file: " + outputFile);
         }

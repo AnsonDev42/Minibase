@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 public class Operator {
-
+    private String outputPath;
 
     public Tuple getNextTuple() throws IOException {
         throw new UnsupportedOperationException("Not implemented");
@@ -19,8 +19,8 @@ public class Operator {
     /**
      * Dump the tuples in the relation to the console
      */
-    public void dump(String outputFilePath) throws IOException {
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath))) {
+    public void dump() throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(outputPath))) {
             Tuple tuple;
             while ((tuple = getNextTuple()) != null) {
 //                System.out.println(tuple);
@@ -29,6 +29,15 @@ public class Operator {
                 writer.newLine();
             }
         }
+    }
+
+    /**
+     * set dump path for dumping to a file
+     *
+     * @param outputPath
+     */
+    public void setDumpPath(String outputPath) {
+        this.outputPath = outputPath;
     }
 
 

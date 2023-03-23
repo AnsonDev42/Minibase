@@ -1,0 +1,1 @@
+Q(x, sname, z) :- R(x, y, z), S(sname, ts, y)

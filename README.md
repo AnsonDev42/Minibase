@@ -17,6 +17,8 @@ z="test string" ,where R is (int,int,int) )`
 
 *you can also find in QueryPlanner code comment, but they are separated out with corresponding functions*
 
+0.0 Find all the requried var names in all conditions(both join and selection)
+
 0. Prepocess a bit for the body, by calling **removeCondition**() method. This method is responsible for removing
    conditions always True; return dummyOperator if any condition is False; and redundant-conditions(WIP).
 

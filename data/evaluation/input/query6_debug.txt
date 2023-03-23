@@ -1,0 +1,1 @@
+Q(y, r) :- R(x, y, z), S(xx, w, t), T(xxx, r), x = 1, x = xx, x = xxx
