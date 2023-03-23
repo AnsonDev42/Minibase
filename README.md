@@ -13,18 +13,17 @@ z="test string" ,where R is (int,int,int) )`
 
 `Special case: if condition contains unseen Variable, it will throw a variable not found error. (e.g. throw exception`
 
-## 1. Extracting join conditions from the body of a query explaination
+## TASK2: Extracting join conditions from the body of a query explaination
 
 *you can also find in QueryPlanner code comment, but they are separated out with corresponding functions*
-
-0.0 Find all the requried var names in all conditions(both join and selection)
 
 0. Prepocess a bit for the body, by calling **removeCondition**() method. This method is responsible for removing
    conditions always True; return dummyOperator if any condition is False; and redundant-conditions(WIP).
 
 1. First, the **findAndUpdateCondition**() method is called. This method is responsible for finding and updating
    hidden
-   conditions in the query body, both selection and join conditions, by replacing repeated variables to new variables.
+   conditions in the query body, both selection and join conditions, by replacing repeated variables to new variables(
+   guaranteed no repeated var).
    This method calls **addImpliedConditions**()
    to achieve above goal and handle hidden join conditions that are implicitly embedded within the relational atoms.
 
@@ -47,5 +46,23 @@ z="test string" ,where R is (int,int,int) )`
        map
        for both relational atoms involved.
 
+3. With the constructing the LEFT DEEP JOIN tree, it creates a joined condition pool for left side(LHS pool), and find
+   the
+   intersection of this left pool with the to be joint relationAtom's join condition pool(RHS pool). Only the
+   intersected
+   condition would be used for the join operator. After the joint, the LHS pool updates by adding the RHS pool.
+
+## TASK3: optimisation rules
+
+0. Reduce conditions. The removeCondition() finds
+    1. always false condition and return a dummy operator immediately,
+       since false condition returns nothing.
+    2. always true condition since it is useless and therefore selection operator can be reduced, since removing
+       always
+       true condition does not affect comparison results.
+1. Choose only required column. The computeRequiredColumn() scans and stores all required variables in both the body and
+   the head. The hashSet requiredColumn is passed into each scanOperator so that it only returns required column, which
+   reduced the size of intermediate results. They are correct because the requiredColumn contains everything needed to
+   be compared so that in any operator it can perform checking condition correctly.
 
 

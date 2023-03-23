@@ -20,7 +20,7 @@ public class Interpreter {
         Operator rootOperator = queryPlanner.getOperator();
         Interpreter.rootOperator = rootOperator;
         rootOperator.setDumpPath(outputFile);
-//        rootOperator.dump(outputFile); //for debugging
+//        rootOperator.dump(); //for debugging
     }
 
     public void dump() {

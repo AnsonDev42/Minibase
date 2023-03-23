@@ -37,17 +37,16 @@ public class QueryPlanner {
         if (removeCondition(body)) { // remove all always true condition TODO: can add more optimization here
             return new dummyOperator();
         }
-//        STEP2: create a map from
 
-        // STEP3: handle hidden condition, by extracting them and add them to the body
+        // STEP2: handle hidden condition, by extracting them and add them to the body
         int conIdx = findAndUpdateCondition(body);
 
         if (conIdx == 0) { // try to optimize for following functions to iterate either relational Atoms or condition Atoms
             conIdx = body.size();
         }
-        // STEP optimise: push down selection
+        // STEP3 optimise: push down selection
         HashSet<String> requiredColumns = computeRequiredColumns(body, head, conIdx);
-        // STEP3: create join tree for relational atoms, add create selection operator if needed
+        // STEP4: create join tree for relational atoms, add create selection operator if needed
         HashMap<String, Integer> jointTupleVarToIdx = createJointTupleVarToIdx(body, conIdx, requiredColumns);
         Operator root = createDeepLeftJoinTree(body, conIdx, jointTupleVarToIdx, requiredColumns);
         // STEP4: create projected variables list( include vars in SumAgg if SumAgg existed)
@@ -257,7 +256,6 @@ public class QueryPlanner {
             intersection.retainAll(rightChildConditions);
             Operator rightChild = operators.get(i);
             root = new JoinOperator(root, rightChild, jointTupleVarToIdx, (RelationalAtom) body.get(i), new ArrayList<>(intersection), requiredColumns);
-            JoinOperator jr_root = (JoinOperator) root;
             leftConditionPool.addAll(rightChildConditions); // Update leftConditionPool
         }
         return root;
