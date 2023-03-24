@@ -52,17 +52,23 @@ z="test string" ,where R is (int,int,int) )`
    intersected
    condition would be used for the join operator. After the joint, the LHS pool updates by adding the RHS pool.
 
-## TASK3: optimisation rules
+## Task 3: Optimization Rules
 
-0. Reduce conditions. The removeCondition() finds
-    1. always false condition and return a dummy operator immediately,
-       since false condition returns nothing.
-    2. always true condition since it is useless and therefore selection operator can be reduced, since removing
-       always
-       true condition does not affect comparison results.
-1. Choose only required column. The computeRequiredColumn() scans and stores all required variables in both the body and
-   the head. The hashSet requiredColumn is passed into each scanOperator so that it only returns required column, which
-   reduced the size of intermediate results. They are correct because the requiredColumn contains everything needed to
-   be compared so that in any operator it can perform checking condition correctly.
+1. Simplify conditions: The `removeCondition()` function optimizes conditions by:
+    - Identifying always false conditions and returning a dummy operator immediately, as the false condition results in
+      an empty output.
+    - Removing always true conditions, as they do not affect the comparison results. This optimization can reduce the
+      need for a selection operator and improve performance.
 
+   These optimizations are correct because they eliminate unnecessary operations and can potentially reduce the size of
+   intermediate results during query evaluation.
+
+2. Select only required columns: The `computeRequiredColumn()` function scans and stores all required variables in both
+   the body and the head. The `HashSet` `requiredColumn` is passed into each `ScanOperator` so that it only returns the
+   required columns, reducing the size of intermediate results. This optimization is correct because
+   the `requiredColumn` contains everything needed for comparison, ensuring that operators can correctly perform
+   condition checks.
+
+By applying these optimization rules, we can reduce the size of intermediate results during query evaluation, ultimately
+improving the performance and efficiency of the overall query execution process.
 
