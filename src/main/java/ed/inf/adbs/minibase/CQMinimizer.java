@@ -59,7 +59,7 @@ public class CQMinimizer {
         Query query = null;
         try {
             query = QueryParser.parse(Paths.get(inputFile));
-            System.out.println("Entire query: " + query);
+//            System.out.println("Entire query: " + query);
 
         } catch (Exception e) {
             System.err.println("Exception occurred during parsing");
@@ -87,13 +87,13 @@ public class CQMinimizer {
         query = new Query(head, newBody);
         // save the query to the outputFile in string format
         String output = query.toString();
-        System.out.println("Minimized query:" + output);
+//        System.out.println("Minimized query:" + output);
         // create the folder if not exist
 
         try {
 //             write and overwrite the file if it exists
             Files.write(Paths.get(outputFile), output.getBytes(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            System.out.println("Write to file successfully");
+//            System.out.println("Write to file successfully");
         } catch (IOException e) {
             System.out.println("Write permission denied.");
         }
@@ -141,7 +141,7 @@ public class CQMinimizer {
             }
             // matched all the terms, return the index of the atom
             if (k == (terms1.size() - 1)) {
-                System.out.println("matched all the terms, return the index of the atom");
+//                System.out.println("matched all the terms, return the index of the atom");
                 List<Atom> newBody = checkRemovable(body, i, forward_tmp_homomorphism);
                 if (newBody.size() != body.size()) {
                     return newBody;
@@ -197,8 +197,8 @@ public class CQMinimizer {
             List<Term> terms = ((RelationalAtom) newBody.get(i)).getTerms();
             for (int j = 0; j < terms.size(); j++) {
                 if (terms.get(j) instanceof Variable && homomorphism.containsKey(terms.get(j).toString())) {
-                    System.out.println("Due to homo" + terms.get(j) + "->" + homomorphism.get(terms.get(j).toString()) +
-                            ", atom " + terms + " is affected, need to check later");
+//                    System.out.println("Due to homo" + terms.get(j) + "->" + homomorphism.get(terms.get(j).toString()) +
+//                            ", atom " + terms + " is affected, need to check later");
                     affectedAtoms.add(i);
                     break;
                 }
@@ -269,30 +269,5 @@ public class CQMinimizer {
             return removedBody;
         }
         return body;
-    }
-
-
-    /**
-     * Example method for getting started with the parser.
-     * Reads CQ from a file and prints it to screen, then extracts Head and Body
-     * from the query and prints them to screen.
-     */
-
-    public static void parsingExample(String filename) {
-
-        try {
-            Query query = QueryParser.parse(Paths.get(filename));
-            // Query query = QueryParser.parse("Q(x, y) :- R(x, z), S(y, z, w)");
-            // Query query = QueryParser.parse("Q(x) :- R(x, 'z'), S(4, z, w)");
-
-            System.out.println("Entire query: " + query);
-            Head head = query.getHead();
-            System.out.println("Head: " + head);
-            List<Atom> body = query.getBody();
-            System.out.println("Body: " + body);
-        } catch (Exception e) {
-            System.err.println("Exception occurred during parsing");
-            e.printStackTrace();
-        }
     }
 }

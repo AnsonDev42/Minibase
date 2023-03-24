@@ -27,7 +27,7 @@ public class Interpreter {
         try {
             rootOperator.dump();
         } catch (Exception e) {
-            System.out.println("Dump complete. check output file: " + outputFile);
+            throw new RuntimeException("dump failed, please check if the output folder exists");
         }
     }
 }

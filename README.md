@@ -4,14 +4,23 @@
 
 TL,DL: Default setting for running CQMinimiser and Minibase(evaluation) should be fine.
 
-You shouldn't test out of the range from PDF, if so, the following error will be thrown(and more undocumented, please
+Potential bug: I failed to run the whole command in PDF, which includes '\' for running the compiled java class. I can
+only run the command by removing all `\ `. e.g. can't run
+`$ java -cp target/minibase-1.0.0-jar-with-dependencies.jar \ ed.inf.adbs.minibase.Minibase \ data/evaluation/db \ data/evaluation/input/query1.txt \ data/evaluation/output/query1.csv`.
+
+but Fine when removing
+all `\ `: `$ java -cp target/minibase-1.0.0-jar-with-dependencies.jar ed.inf.adbs.minibase.Minibase data/evaluation/db data/evaluation/input/query1.txt data/evaluation/output/query1.csv`
+
+You shouldn't test out of the range from the PDF's boundary, if so, the following error will be thrown(and more
+undocumented, please
 check thrown Error message if available):
+
 `Special case: when a string and an integer is compared, it will throw a comparsion error, since the PDF only indicated
 that two string are compared in lexcial order, but not mentioned about between string and integer.(e.g. throw exception
 for Q(x)-: R(x,y,z),
 z="test string" ,where R is (int,int,int) )`
 
-`Special case: if condition contains unseen Variable, it will throw a variable not found error. (e.g. throw exception`
+`Special case: if condition contains unseen Variable, it will throw a variable not found exception`
 
 ## TASK2: Extracting join conditions from the body of a query explaination
 
